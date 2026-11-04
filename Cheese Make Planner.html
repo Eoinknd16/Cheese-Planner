@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cheese Make Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a bench sheet. Inputs sit in a fixed left rail; the right side reads like a make sheet: summary, then ingredients, timeline, press table, aging calendar. */
+:root{
+  --bg:#e9edf0;
+  --panel:#ffffff;
+  --ink:#1b232a;
+  --muted:#5a6772;
+  --line:#d3dae0;
+  --accent:#a3650f;
+  --accent-soft:#f6ead6;
+  --cave:#2f6690;
+  --cave-soft:#e1ecf5;
+  --warn:#a8401a;
+  --warn-soft:#fbe7dd;
+  --ok:#2c7a4b;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11161a; --panel:#192026; --ink:#e5eaee; --muted:#98a5b0; --line:#2b353d;
+    --accent:#e2a64a; --accent-soft:#3a2c17; --cave:#79b0db; --cave-soft:#1b2b38;
+    --warn:#f08a62; --warn-soft:#3b2119; --ok:#6cc792; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11161a; --panel:#192026; --ink:#e5eaee; --muted:#98a5b0; --line:#2b353d;
+  --accent:#e2a64a; --accent-soft:#3a2c17; --cave:#79b0db; --cave-soft:#1b2b38;
+  --warn:#f08a62; --warn-soft:#3b2119; --ok:#6cc792; color-scheme: dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.note-m{display:none;color:var(--muted);font-size:12.5px;margin-top:3px}
+@media (max-width:600px){#ingTbl th:nth-child(3),#ingTbl td.note{display:none}.note-m{display:block}#ingTbl td.amt{white-space:normal}}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:26px;font-weight:700}
+h2{font-size:19px;font-weight:700}
+h3{font-size:15px;font-weight:600;font-family:var(--body)}
+b{font-weight:600}
+.num,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.top{max-width:1260px;margin:0 auto;padding:22px 20px 14px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.top .mark{width:42px;height:42px;flex:none}
+.top .ttl{flex:1;min-width:240px}
+.top p{margin:2px 0 0;color:var(--muted);max-width:68ch}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:transparent;color:var(--muted);font:500 13px var(--body);padding:7px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.layout{max-width:1260px;margin:0 auto;padding:0 20px 60px;display:grid;grid-template-columns:350px minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:920px){.layout{grid-template-columns:1fr}}
+aside.inputs{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:16px;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+@media (max-width:920px){aside.inputs{position:static;max-height:none}}
+fieldset{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+legend{font:600 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);padding:0 0 4px;border-bottom:1px solid var(--line);width:100%;margin-bottom:4px}
+label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+input,select{font:500 14px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:7px 9px;width:100%;min-width:0}
+input[type="number"]{font-family:var(--mono)}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.radios{display:flex;gap:6px;flex-wrap:wrap}
+.radios label{flex-direction:row;align-items:center;gap:5px;border:1px solid var(--line);border-radius:7px;padding:5px 9px;cursor:pointer;color:var(--ink);background:var(--bg)}
+.radios input{width:auto;margin:0;accent-color:var(--accent)}
+.hint{font-size:12px;color:var(--muted);margin:0}
+.cheese-card{background:var(--accent-soft);border-radius:9px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:4px}
+.dots{letter-spacing:2px;color:var(--accent)}
+.out{display:flex;flex-direction:column;gap:18px;min-width:0}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:700px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tile .k{font-size:12px;color:var(--muted)}
+.tile .v{font:600 21px var(--mono);font-variant-numeric:tabular-nums;line-height:1.2;overflow-wrap:anywhere}
+.tile .s{font-size:12px;color:var(--muted)}
+.tile.hi{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tabs a{font:600 14px var(--body);color:var(--muted);text-decoration:none;padding:9px 14px;border-radius:8px 8px 0 0;border:1px solid transparent;border-bottom:0;margin-bottom:-1px}
+.tabs a[aria-selected="true"]{color:var(--ink);background:var(--panel);border-color:var(--line)}
+.panel{display:none;flex-direction:column;gap:16px}
+.panel.on{display:flex}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.card-h .sub{font-size:13px;color:var(--muted)}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font:600 11px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.amt{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500;white-space:nowrap}
+td.note{color:var(--muted);font-size:13px}
+.warns{display:flex;flex-direction:column;gap:8px}
+.warn{background:var(--warn-soft);color:var(--ink);border-left:3px solid var(--warn);border-radius:6px;padding:9px 12px;font-size:13.5px}
+.info{background:var(--cave-soft);border-left:3px solid var(--cave);border-radius:6px;padding:9px 12px;font-size:13.5px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12.5px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--bg)}
+ol.tl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+ol.tl li{display:grid;grid-template-columns:70px minmax(0,1fr);gap:14px;padding:12px 0;border-top:1px solid var(--line)}
+ol.tl li:first-child{border-top:0}
+.tl .clock{font:500 15px var(--mono);font-variant-numeric:tabular-nums}
+.tl .day{font-size:11px;color:var(--muted);display:block}
+.tl .head{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tl .head h3{font-size:15px}
+.tl .body{margin:4px 0 0;color:var(--ink);font-size:14px;max-width:72ch}
+.temp{font:500 12px var(--mono);border-radius:999px;padding:1px 8px;color:#fff}
+.dur{font:500 12px var(--mono);color:var(--muted)}
+.tag{font-size:11px;border-radius:4px;padding:1px 6px;background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.tag.hands{color:var(--accent);border-color:var(--accent)}
+.press-row td:first-child{font-weight:600}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button.btn{font:600 13px var(--body);border-radius:8px;padding:8px 13px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+button.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.btn.danger{color:var(--warn)}
+.cal td.when{white-space:nowrap;font-family:var(--mono);font-size:13px}
+.kind{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.k-make{background:var(--accent)} .k-press{background:#8a6d3b} .k-salt{background:#7d8a96} .k-care{background:var(--cave)} .k-turn{background:var(--line);border:1px solid var(--muted)} .k-mile{background:var(--ok)}
+.cal tr.mile td{font-weight:600}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:700px){.grid2{grid-template-columns:1fr}}
+.cond{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:600px){.cond{grid-template-columns:1fr}}
+.cond div{background:var(--cave-soft);border-radius:8px;padding:10px 12px}
+.cond .k{font-size:12px;color:var(--muted)} .cond .v{font:600 17px var(--mono)}
+.batch{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.bar{height:8px;background:var(--bg);border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar.done i{background:var(--ok)}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+ul.tips{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:9px 16px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
+textarea.copybox{width:100%;min-height:140px;font:12px var(--mono);background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px}
+
+.modes{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:3px}
+.modes a{font:600 13px var(--body);color:var(--muted);text-decoration:none;padding:6px 12px;border-radius:6px}
+.modes a[aria-current]{background:var(--accent);color:#fff}
+.lab{max-width:1260px;margin:0 auto;padding:0 20px 60px;display:flex;flex-direction:column;gap:16px}
+.lab-head p{margin:4px 0 0;color:var(--muted);max-width:75ch}
+.methods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:860px){.methods{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.method{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 14px;text-decoration:none;color:var(--ink);display:flex;flex-direction:column;gap:3px}
+.method p{margin:0;font-size:13px;color:var(--muted)}
+.method[aria-selected="true"]{border-color:var(--accent);box-shadow:inset 0 -3px 0 var(--accent)}
+.method:hover{border-color:var(--accent)}
+.lab-grid{display:grid;grid-template-columns:400px minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:960px){.lab-grid{grid-template-columns:1fr}}
+.lab-in{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+@media (max-width:960px){.lab-in{position:static;max-height:none}}
+.lab-out{display:flex;flex-direction:column;gap:14px;min-width:0}
+.attrs{display:flex;flex-direction:column;gap:9px}
+.attr{display:flex;flex-direction:column;gap:4px}
+.attr-l{font-size:13px;font-weight:600;color:var(--ink);display:flex;flex-direction:column}
+.attr-ends{font-weight:400;font-size:12px;color:var(--muted)}
+.seg3{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--bg)}
+.seg3 button{flex:1;border:0;border-left:1px solid var(--line);background:transparent;color:var(--muted);font:500 12.5px var(--body);padding:6px 4px;cursor:pointer;min-width:0}
+.seg3 button:first-child{border-left:0}
+.seg3 button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.chip.tog{cursor:pointer;font:500 12.5px var(--body);color:var(--ink)}
+.chip.tog[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip.strong{background:var(--accent-soft);border-color:var(--accent);font-weight:600}
+.ranks{display:flex;flex-direction:column;gap:6px}
+.rank{position:relative;display:flex;justify-content:space-between;gap:8px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);font:500 13.5px var(--body);cursor:pointer;overflow:hidden;text-align:left}
+.rank i{position:absolute;left:0;bottom:0;height:3px;background:var(--cave)}
+.rank.on{border-color:var(--accent);background:var(--accent-soft)}
+.rc-top{display:flex;gap:10px;align-items:end}
+.grow{flex:1}
+label.inline{flex-direction:row;align-items:center;gap:8px}
+label.inline input{width:80px}
+label.chk{flex-direction:row;align-items:center;gap:8px;color:var(--ink)}
+label.chk input{width:auto;accent-color:var(--accent)}
+.cf-sec{display:flex;flex-direction:column;gap:8px;padding:10px 0;border-top:1px solid var(--line)}
+.cf-h{font:600 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.cf-multi{display:flex;flex-direction:column;gap:6px}
+.bars{display:flex;flex-direction:column;gap:8px}
+.barrow{display:grid;grid-template-columns:140px minmax(0,1fr);gap:10px;align-items:center}
+@media (max-width:560px){.barrow{grid-template-columns:1fr;gap:2px}}
+.bl{font-size:13px;font-weight:600}
+.bt{display:grid;grid-template-columns:88px minmax(0,1fr) 88px;gap:8px;align-items:center}
+.bt .end{font-size:11px;color:var(--muted);line-height:1.2}
+.bt .end:last-child{text-align:right}
+.track{position:relative;height:14px;background:var(--bg);border:1px solid var(--line);border-radius:999px}
+.track .fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:999px;opacity:.85}
+.track .grid{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--line)}
+.track .mk{position:absolute;top:50%;width:10px;height:10px;transform:translate(-50%,-50%)}
+.mk.base{width:3px;height:20px;background:var(--ink);border-radius:2px}
+.mk.tgt{background:var(--cave);transform:translate(-50%,-50%) rotate(45deg);border:2px solid var(--panel)}
+.legend{display:flex;gap:16px;flex-wrap:wrap}
+.lg{display:inline-block;vertical-align:middle;margin-right:6px}
+.lg.fill{width:16px;height:8px;background:var(--accent);border-radius:4px}
+.lg.base{width:3px;height:12px;background:var(--ink)}
+.lg.tgt{width:8px;height:8px;background:var(--cave);transform:rotate(45deg)}
+table.settings td:first-child{color:var(--muted);width:45%}
+tr.chg td{background:var(--accent-soft)}
+.rec{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:var(--bg);color:var(--ink);font:14px var(--body);cursor:pointer}
+.rec.on{border-color:var(--accent);background:var(--accent-soft)}
+.sep{border-top:1px solid var(--line)}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);font:inherit;text-decoration:underline;cursor:pointer}
+button.btn[disabled]{opacity:.5;cursor:not-allowed}
+.lab-in h3{font-size:15px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <svg class="mark" viewBox="0 0 48 48" aria-hidden="true">
+    <path d="M4 30 L40 14 L44 30 Z" fill="var(--accent)"/>
+    <path d="M4 30 L44 30 L44 38 L4 38 Z" fill="var(--accent)" opacity=".75"/>
+    <circle cx="30" cy="25" r="2.6" fill="var(--panel)"/><circle cx="20" cy="27" r="1.7" fill="var(--panel)"/><circle cx="36" cy="34" r="2" fill="var(--panel)"/><circle cx="14" cy="34" r="1.4" fill="var(--panel)"/>
+  </svg>
+  <div class="ttl">
+    <h1>Cheese Make Planner</h1>
+    <p>Enter your mold, milk and rennet. You get every amount, temperature, timing and press weight for the make, then a dated aging plan.</p>
+  </div>
+  <nav class="modes" aria-label="Pages"><a href="#make" id="mode-plan" aria-current="page">Make planner</a><a href="#lab" id="mode-lab">Recipe lab</a></nav>
+  <div class="seg" role="group" aria-label="Units">
+    <button type="button" id="u-metric" aria-pressed="true">°C · kg · L</button>
+    <button type="button" id="u-imp" aria-pressed="false">°F · lb · gal</button>
+  </div>
+</header>
+
+<div class="layout" id="planner">
+<aside class="inputs" aria-label="Your setup">
+  <fieldset>
+    <legend>1 · Cheese</legend>
+    <label for="cheese">Style<select id="cheese"></select></label>
+    <div class="cheese-card" id="cheeseCard"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>2 · Size</legend>
+    <div class="radios" role="radiogroup" aria-label="Size by">
+      <label><input type="radio" name="sizeMode" id="sm-mold" value="mold" checked> Mold size</label>
+      <label><input type="radio" name="sizeMode" id="sm-target" value="target"> Total weight</label>
+      <label><input type="radio" name="sizeMode" id="sm-milk" value="milk"> Milk I have</label>
+    </div>
+    <div class="row2">
+      <label for="moldKg" id="lbl-moldKg">Capacity per mold (kg)<input type="number" id="moldKg" min="0.05" step="0.05" value="1.4"></label>
+      <label for="targetKg" id="lbl-targetKg" hidden>Total cheese (kg)<input type="number" id="targetKg" min="0.1" step="0.1" value="1.4"></label>
+      <label for="milkHave" id="lbl-milkHave" hidden>Milk (litres)<input type="number" id="milkHave" min="1" step="0.5" value="15"></label>
+      <label for="moldCount">Number of molds<input type="number" id="moldCount" min="1" step="1" value="1"></label>
+    </div>
+    <label for="diam" id="lbl-diam">Mold inner diameter (cm)<input type="number" id="diam" min="4" step="0.5" placeholder="auto"></label>
+    <p class="hint" id="diamHint"></p>
+  </fieldset>
+
+  <fieldset>
+    <legend>3 · Milk</legend>
+    <div class="row2">
+      <label for="species">Animal<select id="species">
+        <option value="cow">Cow</option><option value="goat">Goat</option><option value="sheep">Sheep</option><option value="buffalo">Water buffalo</option>
+      </select></label>
+      <label for="treat">Treatment<select id="treat">
+        <option value="homog">Supermarket (homog.)</option>
+        <option value="past">Pasteurised only</option>
+        <option value="raw">Raw</option>
+        <option value="uht">UHT / long-life</option>
+      </select></label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>4 · Rennet</legend>
+    <label for="rennetType">What rennet do you have?<select id="rennetType">
+      <option value="standard">Liquid, standard 200 IMCU/ml</option>
+      <option value="single">Liquid, single strength (≈150 IMCU/ml)</option>
+      <option value="double">Liquid, double strength (≈300 IMCU/ml)</option>
+      <option value="custom">Liquid, I know the IMCU/ml</option>
+      <option value="label">Use the dose printed on my bottle</option>
+      <option value="tablet">Tablets</option>
+    </select></label>
+    <label for="rennetIMCU" id="lbl-imcu" hidden>Strength (IMCU per ml)<input type="number" id="rennetIMCU" min="10" step="10" value="200"></label>
+    <div class="row2" id="lbl-label" hidden>
+      <label for="labelMl">Label dose (ml)<input type="number" id="labelMl" min="0.1" step="0.1" value="2.5"></label>
+      <label for="labelL">…per litres of milk<input type="number" id="labelL" min="1" step="1" value="10"></label>
+    </div>
+    <label for="tabL" id="lbl-tab" hidden>One tablet sets how many litres? (see packet)<input type="number" id="tabL" min="1" step="1" value="20"></label>
+    <p class="hint">Strengths vary between brands. If the timeline's set is too fast or slow, use the flocculation box on the make sheet and it corrects itself.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>5 · Culture &amp; calcium</legend>
+    <label for="culMode">Culture dosing<select id="culMode">
+      <option value="tsp">Teaspoon measures (home packets)</option>
+      <option value="units">By units (e.g. 50U commercial pack)</option>
+    </select></label>
+    <div class="row2" id="lbl-units" hidden>
+      <label for="pktU">Pack size (units)<input type="number" id="pktU" min="1" step="1" value="50"></label>
+      <label for="pktG">Pack weight (g, optional)<input type="number" id="pktG" min="0" step="0.5" placeholder="e.g. 10"></label>
+    </div>
+    <label for="caclForm">Calcium chloride<select id="caclForm">
+      <option value="liquid">Liquid, 30–33% solution</option>
+      <option value="flakes">Dry flakes / powder</option>
+      <option value="none">I don't have any</option>
+    </select></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>6 · When</legend>
+    <label for="start">Start the make at<input type="datetime-local" id="start"></label>
+  </fieldset>
+</aside>
+
+<section class="out">
+  <div class="tiles" id="tiles"></div>
+  <nav class="tabs" role="tablist">
+    <a href="#make" role="tab" id="tab-make" aria-selected="true">Make day</a>
+    <a href="#aging" role="tab" id="tab-aging" aria-selected="false">Aging plan</a>
+    <a href="#cave" role="tab" id="tab-cave" aria-selected="false">My cave</a>
+  </nav>
+
+  <div class="panel on" id="p-make" role="tabpanel" aria-labelledby="tab-make">
+    <div class="warns" id="warns"></div>
+    <div class="card">
+      <div class="card-h"><h2>Ingredients</h2><span class="sub" id="ingSub"></span></div>
+      <div class="tbl-wrap"><table id="ingTbl"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Equipment</h2></div>
+      <div class="chips" id="equip"></div>
+    </div>
+    <div class="card" id="flocCard">
+      <div class="card-h"><h2>Calibrate the cut time</h2><span class="sub">optional, on the day</span></div>
+      <p class="small" style="margin:0">After adding rennet, note the minute the milk starts to gel (a floating lid stops spinning). Enter it here and the cut time and the rest of the timeline update.</p>
+      <div class="row2" style="max-width:420px">
+        <label for="flocIn">Flocculation seen at (min)<input type="number" id="flocIn" min="2" step="1" placeholder="e.g. 14"></label>
+        <label>Cut at<span class="num" id="cutOut" style="font-size:18px;color:var(--ink);padding-top:6px"></span></label>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Timeline</h2><span class="sub" id="tlSub"></span></div>
+      <ol class="tl" id="timeline"></ol>
+    </div>
+    <div class="card" id="pressCard">
+      <div class="card-h"><h2>Press schedule</h2><span class="sub" id="pressSub"></span></div>
+      <div class="tbl-wrap"><table id="pressTbl"></table></div>
+      <p class="hint" id="pressHint"></p>
+    </div>
+    <div class="card" id="saltCard">
+      <div class="card-h"><h2>Salting</h2></div>
+      <div id="saltBody" class="small"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Tips for this cheese</h2></div>
+      <ul class="tips" id="tips"></ul>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Take it to the kitchen</h2></div>
+      <div class="btns">
+        <button class="btn primary" type="button" id="copyText">Copy full make sheet</button>
+      </div>
+      <p class="hint">Copies everything above as plain text, ready to paste into notes or print.</p>
+    </div>
+  </div>
+
+  <div class="panel" id="p-aging" role="tabpanel" aria-labelledby="tab-aging">
+    <div class="card">
+      <div class="card-h"><h2>Aging choices</h2></div>
+      <div class="grid2">
+        <label for="profile">How aged do you want it?<select id="profile"></select></label>
+        <label for="rind" id="lbl-rind">Rind finish<select id="rind"></select></label>
+      </div>
+      <div class="cond" id="cond"></div>
+      <p class="small muted" id="caveHint" style="margin:0"></p>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Plan backwards</h2><span class="sub">for a holiday, gift or event</span></div>
+      <div class="grid2">
+        <label for="readyBy">I want it ready by<input type="date" id="readyBy"></label>
+        <div id="readyOut" class="small" style="align-self:end"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Care calendar</h2><span class="sub" id="calSub"></span></div>
+      <div class="tbl-wrap"><table class="cal" id="calTbl"></table></div>
+      <div class="btns">
+        <button class="btn primary" type="button" id="saveBatch">Save this batch to My cave</button>
+        <button class="btn" type="button" id="copyIcs">Copy as calendar (.ics)</button>
+      </div>
+      <div id="icsBox" hidden>
+        <p class="hint">Paste this into a plain text file, save it as <span class="mono">cheese.ics</span> and open it: Outlook, Google and Apple calendars will import every reminder.</p>
+        <textarea class="copybox" id="icsText" readonly aria-label="Calendar file text"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="p-cave" role="tabpanel" aria-labelledby="tab-cave">
+    <div class="card">
+      <div class="card-h"><h2>Jobs for the next 14 days</h2><span class="sub">across every saved batch</span></div>
+      <div id="caveTasks"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Batches aging</h2><span class="sub">saved in this browser</span></div>
+      <div id="caveList" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+  </div>
+</section>
+</div>
+<main class="lab" id="lab" hidden>
+  <div class="lab-head">
+    <h2>Recipe lab</h2>
+    <p>Develop your own cheese. Start from a taste, from a cheese you know, or from a blank sheet. Save it, make it in the planner, then improve it version by version from your tasting notes.</p>
+  </div>
+  <nav class="methods" role="tablist" aria-label="Ways to build a recipe">
+    <a href="#lab-taste" class="method" id="lm-taste" role="tab"><h3>Taste first</h3><p>Describe the cheese you want. The lab finds the closest style and adjusts it.</p></a>
+    <a href="#lab-like" class="method" id="lm-like" role="tab"><h3>Like a cheese, but…</h3><p>Pick a cheese you know and push it: firmer, tangier, nuttier, bluer.</p></a>
+    <a href="#lab-custom" class="method" id="lm-custom" role="tab"><h3>Fully custom</h3><p>Set every parameter yourself, with live checks as you go.</p></a>
+    <a href="#lab-book" class="method" id="lm-book" role="tab"><h3>Recipe book</h3><p>Saved recipes, versions, a tasting log and suggested fixes.</p></a>
+  </nav>
+  <div class="lab-grid">
+    <section class="card lab-in" id="labIn" aria-label="Recipe inputs"></section>
+    <section class="lab-out" id="labOut" aria-label="Recipe"></section>
+  </div>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+"use strict";
+/* ---------------- Reference data ---------------- */
+const SPECIES={cow:{l:'Cow',y:1,r:1},goat:{l:'Goat',y:0.9,r:1},sheep:{l:'Sheep',y:1.7,r:0.75},buffalo:{l:'Water buffalo',y:1.45,r:0.85}};
+const TREAT={raw:{l:'raw',cacl:0},past:{l:'pasteurised',cacl:0.25},homog:{l:'supermarket',cacl:0.33},uht:{l:'UHT',cacl:0.33}};
+const RSTR={standard:200,single:150,double:300};
+
+const RINDS={
+  wax:{l:'Waxed',apply:'Melt cheese wax to {T90}–{T100}. Brush or dip in 2–3 thin coats, letting each set. Slip a label under the last coat.',care:'Turn weekly. If mold shows under the wax, cut it out and re-wax.',turn:'weekly'},
+  coat:{l:'Cheese coating (Gouda style)',apply:'Paint a thin layer of cheese coating on the top and sides, let it dry a few hours, flip and coat the other side. Repeat for 2–3 coats over 2 days.',care:'Turn every few days at first, then weekly.',turn:'full'},
+  vac:{l:'Vacuum-sealed (no rind)',apply:'Vacuum-seal the dry wheel in a cheese bag (or a heavy vacuum bag).',care:'Turn weekly. If the bag puffs with gas, open it, dry the cheese and re-seal.',turn:'weekly'},
+  natural:{l:'Natural rind (brushed)',apply:'Begin rind care: brush or wipe the surface. After week 2 a very light rub of olive oil keeps it supple.',care:'Turn and brush 1–2× a week. Wipe unwanted mold with a cloth dampened in light brine. Grey/white mold is normal.',turn:'full',brush:true},
+  cloth:{l:'Clothbound (lard & muslin)',apply:'Rub the wheel with lard, press muslin bandages onto top, bottom and sides, then a second thin coat of lard over the cloth.',care:'Turn every few days for a month, then weekly. Brush the cloth monthly.',turn:'full',brush:true},
+  smear:{l:'Washed rind, pungent (B. linens)',apply:'Start washing with a cloth dipped in light brine (50 g salt per litre) with a pinch of B. linens. A sticky orange rind develops over 2–3 weeks.',care:'Wash and turn every 2 days for a month, then weekly.',turn:'full',wash:true},
+  washed:{l:'Brine-washed rind (alpine)',apply:'Start washing the rind with a cloth dipped in light brine (50 g salt per litre of water). This builds the tan, slightly sticky alpine rind.',care:'Wash and turn 2–3× a week for the first month, then weekly.',turn:'full',wash:true}
+};
+
+/* step helpers: [minutes, title, tempC|null, body, handsOn(1/0), key] */
+const PREP=()=>[20,'Sanitise & set up',null,'Sanitise everything that touches the milk: pot, spoon, knife, thermometer, ladle, colander, cloth and molds (boiling water or a no-rinse sanitiser). Use a pot of at least {pot}. Have cool non-chlorinated water ready for diluting additives (boiled-and-cooled or bottled: chlorine kills cultures and weakens rennet).',1];
+const HEAT=(k,T)=>[k.heatMin,'Warm the milk',T,`Pour {milk} of milk into the pot and warm it gently to {T${T}}. A water bath (pot standing in a larger pot or a sink of hot water) heats evenly and stops scorching. Stir every few minutes. {cacl}`,1];
+const CULT=(T,min)=>[min,'Add culture & ripen',T,`Sprinkle {culture} over the surface. Wait 2 minutes for it to rehydrate, then stir with slow up-and-down strokes for 1 minute. {adj}Cover and hold at {T${T}} for ${min} minutes. Keep it within 1° of target; top up the water bath if needed.`,0];
+const RENNET=(k,T)=>[k.rennetDur,'Add rennet & let it set',T,`Dilute {rennet} in {rwater} of cool non-chlorinated water and stir it in with up-and-down strokes for 1 minute. Hold the spoon flat on the surface to stop the milk swirling, then cover and leave it completely still. <b>Flocculation check:</b> from about 8 minutes, float a small plastic lid on the milk and give it a gentle spin every minute. The minute it stops spinning freely is flocculation. Cut at {floc}× that time (planned: about {cutAt} after adding rennet).`,0,'rennet'];
+const CUT=(size,T)=>[10,'Check for a clean break & cut',T,`Push a knife in at an angle and lift. The curd should split cleanly with clear, greenish whey running into the crack. If it is soft like custard, wait 5–10 minutes and check again. Cut into ${size} cubes: parallel vertical cuts one way, then at right angles, then angled cuts (or a whisk) to cut the layers.`,1];
+const HEAL=(min,T)=>[min,'Let the curds heal',T,`Leave the curds still for ${min} minutes so the cut surfaces firm up before you stir.`,0];
+
+const CHEESES=[
+/* ---------- Hard ---------- */
+{id:'cheddar',name:'Cheddar (traditional, cheddared)',group:'Hard, long aged',diff:3,kind:'pressed',
+ blurb:'The full cheddaring method: curd slabs are stacked and turned until they stretch like cooked chicken, then milled, salted and pressed hard.',
+ yield:0.10,cul:{type:'Mesophilic',tsp:0.125,u:10,ex:'MA11, MM100, MA4001 or Flora Danica'},adj:[],imcu:50,floc:14,mult:3,cacl:true,
+ press:[[0.025,15,'Flip and redress the cloth'],[0.05,30,'Flip and redress'],[0.10,120,'Flip and redress'],[0.128,720,'Leave overnight']],
+ salt:{m:'dry',pct:2.2},dry:2,age:{t:'10–12°C',rh:'85%'},profiles:[['Mild',60],['Medium',120],['Mature',270],['Vintage',450]],def:1,rinds:['cloth','wax','vac'],ratio:0.6,
+ tips:['Curd that cools below about 30°C before pressing will not knit. Keep it warm until it is in the press.','Open or cracked rind after pressing: press longer at the final weight, or the curd was too cool.','Sharp, crumbly or bitter: too much culture or the cheddaring ran too long.'],
+ steps:k=>[PREP(),HEAT(k,31),CULT(31,45),RENNET(k,31),CUT('1 cm (½")',31),HEAL(5,31),
+  [30,'Cook the curds',38,'Raise the temperature slowly from {T31} to {T38} over 30 minutes (about 1° every 4 minutes), stirring gently. Heating faster seals the curd surface and traps whey.',1],
+  [40,'Stir out',38,'Hold at {T38} and keep stirring for 30–45 minutes. Curds shrink to pea size, feel springy, and hold together when squeezed but break apart easily. Whey pH about 6.2 if you have a meter.',1],
+  [10,'Drain',null,'Let the curds settle for 5 minutes, then pour off the whey through a cloth-lined colander.',1],
+  [105,'Cheddar the curd',38,'Put the curd mass back in the empty pot set in a water bath at {T38}. Let it knit into a slab for 15 minutes, cut it into 2–3 slabs, and flip them every 15 minutes, stacking two high after 30 minutes. After 1½–2 hours it is smooth and rubbery and tears like cooked chicken breast (pH 5.3–5.4).',0],
+  [15,'Mill & salt',null,'Cut or tear the slabs into thumb-sized pieces. Sprinkle {salt} of non-iodised cheese salt over in 3 additions, 5 minutes apart, tossing gently. Whey will seep out: this is normal.',1],
+  [10,'Fill the mold',null,'Line the mold with damp cheesecloth. Pack the warm curd in firmly, fold the cloth neatly over the top (creases print on the rind) and add the follower.',1],'PRESS']},
+{id:'alpine',name:'Alpine (Gruyère-style)',group:'Hard, long aged',diff:3,kind:'pressed',
+ blurb:'Rice-sized curds cooked hot and dry, pressed hard and brined, then aged on a washed rind for sweet, nutty depth.',
+ yield:0.09,cul:{type:'Thermophilic',tsp:0.125,u:5,ex:'TA61, TA45 or Thermo B'},adj:[],imcu:40,floc:12,mult:2.5,cacl:true,
+ press:[[0.03,15,'Flip and redress'],[0.06,30,'Flip and redress'],[0.10,120,'Flip and redress'],[0.13,600,'Leave overnight']],
+ salt:{m:'brine',hPerKg:8,minH:6},dry:1,age:{t:'13°C',rh:'90%'},profiles:[['Young',120],['Classic',240],['Reserve',365]],def:1,rinds:['washed','vac'],ratio:0.5,
+ tips:['The curd must be properly dry at the end of the cook. If a squeezed handful does not crumble into grains, stir 10 more minutes.','Calf rennet gives the best long-aged result; microbial rennet can turn bitter after many months.','Washing the rind in the first month decides the rind quality.'],
+ steps:k=>[PREP(),HEAT(k,33),CULT(33,30),RENNET(k,33),
+  [15,'Cut to rice-sized curds',33,'After a clean break, cut to 1.5 cm cubes, then keep cutting with a whisk or curd harp over 10–15 minutes until curds are rice-grain size (about 5 mm).',1],
+  [15,'Fore-stir',33,'Stir gently for 15 minutes so the small curds firm up.',1],
+  [45,'Cook',52,'Heat slowly from {T33} to {T52} over about 45 minutes (roughly 0.5° per minute), stirring all the time so the curds do not clump.',1],
+  [30,'Hold & dry the curd',52,'Hold at {T52} stirring for 20–40 minutes. Test: a squeezed handful mats together but crumbles back into separate grains when rubbed between your palms, and squeaks on the teeth.',1],
+  [10,'Pitch & collect',null,'Stop stirring and let the curds sink and mat for 5 minutes. Gather them in a cheesecloth under the whey and lift straight into the mold while still hot.',1],'PRESS']},
+{id:'parmesan',name:'Parmesan-style (Grana)',group:'Hard, long aged',diff:3,kind:'pressed',
+ blurb:'Part-skim milk, thermophilic culture and a very hot cook give a dry, granular cheese for long aging.',
+ yield:0.075,cul:{type:'Thermophilic',tsp:0.125,u:5,ex:'TA61 or TA45 (+ LH100 if you have it)'},adj:[['Lipase (optional, for a sharper flavour)',0.06,'Dissolve in 30 ml cool water 20 min before adding']],imcu:40,floc:12,mult:2.5,cacl:true,
+ press:[[0.015,15,'Flip and redress'],[0.04,30,'Flip and redress'],[0.07,120,'Flip and redress'],[0.10,600,'Leave overnight']],
+ salt:{m:'brine',hPerKg:24,minH:12},dry:3,age:{t:'13°C',rh:'80–85%'},profiles:[['Minimum',300],['Classic',365],['Stravecchio',540]],def:1,rinds:['natural','vac'],ratio:0.6,
+ milkNote:'Use part-skim milk (about 2.5% fat): mix whole and skimmed milk 50:50, or let whole milk rest overnight in the fridge and skim off the cream.',
+ tips:['Do not judge it before 10 months.','Small home wheels dry out faster than big ones: oil the rind every month.'],
+ steps:k=>[PREP(),HEAT(k,33),CULT(33,45),RENNET(k,33),
+  [15,'Cut to rice-sized curds',33,'After a clean break, cut to 1.5 cm cubes, then keep cutting with a whisk over 10–15 minutes down to rice-grain size.',1],
+  [10,'Fore-stir',33,'Stir gently for 10 minutes.',1],
+  [45,'Cook',53,'Heat from {T33} to {T53} over about 45 minutes, stirring constantly.',1],
+  [45,'Hold & dry the curd',53,'Hold at {T53} stirring 30–60 minutes until the curd is very dry, grainy and squeaky.',1],
+  [10,'Pitch & collect',null,'Let the curds settle for 10 minutes, gather in cloth under the whey and put straight into the mold.',1],'PRESS']},
+/* ---------- Semi-hard ---------- */
+{id:'jack',name:'Monterey Jack',group:'Semi-hard, pressed',diff:1,kind:'pressed',
+ blurb:'A mild, buttery, moist cheese. The best first pressed cheese.',
+ yield:0.105,cul:{type:'Mesophilic',tsp:0.125,u:10,ex:'MA11, MM100 or MA4001'},adj:[],imcu:50,floc:13,mult:3,cacl:true,
+ press:[[0.03,15,'Flip and redress'],[0.06,30,'Flip and redress'],[0.08,720,'Leave overnight']],
+ salt:{m:'dry',pct:2},dry:2,age:{t:'12°C',rh:'85%'},profiles:[['Young',30],['Aged',90],['Dry Jack',180]],def:0,rinds:['wax','vac','natural'],ratio:0.6,
+ tips:['Ready to eat young: one month is plenty.','For Dry Jack, rub the rind with oil, cocoa and black pepper and age 6 months or more.'],
+ steps:k=>[PREP(),HEAT(k,32),CULT(32,45),RENNET(k,32),CUT('1.5 cm (⅝")',32),HEAL(5,32),
+  [15,'Stir',32,'Stir gently for 15 minutes.',1],
+  [30,'Cook the curds',39,'Raise to {T39} over 30 minutes, stirring.',1],
+  [30,'Stir out',39,'Hold at {T39} stirring 30 minutes until curds are firm and springy.',1],
+  [10,'Drain',null,'Let curds settle, pour the whey off down to curd level, then into a cloth-lined colander. Drain 5 minutes.',1],
+  [10,'Salt',null,'Break the curd into small pieces and mix in {salt} of cheese salt.',1],
+  [10,'Fill the mold',null,'Pack the curds into the cloth-lined mold, fold the cloth neatly and add the follower.',1],'PRESS']},
+{id:'caerphilly',name:'Caerphilly',group:'Semi-hard, pressed',diff:1,kind:'pressed',
+ blurb:'Welsh, lemony and crumbly. Ready in 3 weeks, so you taste results fast.',
+ yield:0.11,cul:{type:'Mesophilic',tsp:0.125,u:10,ex:'MA11, MM100 or Flora Danica'},adj:[],imcu:50,floc:15,mult:3,cacl:true,
+ press:[[0.02,15,'Flip and redress'],[0.05,30,'Flip and redress'],[0.07,720,'Leave overnight']],
+ salt:{m:'brine',hPerKg:6,minH:4},dry:2,age:{t:'12°C',rh:'85–90%'},profiles:[['Fresh & crumbly',21],['Classic',42],['Mature',90]],def:1,rinds:['natural','wax','vac'],ratio:0.6,
+ tips:['Aged 2–3 months it grows a creamy layer under the rind.','Keep the cook gentle: this is a moist cheese.'],
+ steps:k=>[PREP(),HEAT(k,32),CULT(32,40),RENNET(k,32),CUT('1 cm (½")',32),HEAL(5,32),
+  [15,'Stir',32,'Stir gently for 15 minutes.',1],
+  [15,'Warm slightly',33,'Raise to {T33} over 15 minutes.',1],
+  [40,'Stir out',33,'Stir 30–40 minutes until curds are small and firm.',1],
+  [5,'Drain',null,'Pour off the whey through a cloth-lined colander.',1],
+  [20,'Mat the curd',null,'Let the curd mat into a block in the colander. Cut it into 5 cm pieces and turn them 2–3 times over 20 minutes.',0],
+  [10,'Break up & mold',null,'Break the curd into walnut-sized pieces and pack into the cloth-lined mold. No salt now: it is brined after pressing.',1],'PRESS']},
+{id:'gouda',name:'Gouda',group:'Semi-hard, pressed',diff:2,kind:'pressed',
+ blurb:'Washed curd keeps it sweet and supple. Young it is mild; old it turns caramel-sweet with crunchy crystals.',
+ yield:0.105,cul:{type:'Mesophilic',tsp:0.125,u:10,ex:'MA11, MM100, or Flora Danica for aroma'},adj:[],imcu:45,floc:13,mult:3,cacl:true,
+ press:[[0.025,30,'Flip and redress'],[0.05,30,'Flip and redress'],[0.075,480,'Leave 6–8 h']],
+ salt:{m:'brine',hPerKg:8,minH:4},dry:3,age:{t:'12–13°C',rh:'80–85%'},profiles:[['Jong (young)',35],['Belegen (matured)',120],['Oud (old)',300]],def:1,rinds:['coat','wax','vac'],ratio:0.55,
+ tips:['Washing the curd removes lactose. That is what keeps Gouda sweet and stops it getting too acidic.','Pressing under the whey stops air pockets forming in the paste.'],
+ steps:k=>[PREP(),HEAT(k,32),CULT(32,30),RENNET(k,32),CUT('1 cm (½")',32),HEAL(5,32),
+  [10,'Stir',32,'Stir gently for 10 minutes.',1],
+  [10,'First wash',34,'Remove about {wash} of whey (roughly a third). Add water at {T60} a little at a time while stirring, until curds and whey reach {T34}. You will need about the same volume of water as whey removed.',1],
+  [10,'Stir',34,'Stir for 10 minutes.',1],
+  [10,'Second wash',38,'Remove whey down to the level of the curds, then add {T60} water gradually until the mix reaches {T38}.',1],
+  [25,'Stir out',38,'Stir 20–30 minutes until curds are firm and springy.',1],
+  [15,'Press under the whey',null,'Let the curds settle. Push them together into a mat under the whey with your hands, then lay a plate on top with about 1 kg of weight for 10–15 minutes.',0],
+  [10,'Drain & mold',null,'Pour off the whey. Cut the curd mat into pieces that fit and put them in the cloth-lined mold, pressing them together firmly.',1],'PRESS']},
+{id:'tomme',name:'Tomme (rustic mountain)',group:'Semi-hard, pressed',diff:2,kind:'pressed',
+ blurb:'A farmhouse cheese with a natural mottled rind. Forgiving and full of character, especially with raw milk.',
+ yield:0.10,cul:{type:'Mesophilic',tsp:0.125,u:10,ex:'MA11, MM100 or Flora Danica'},adj:[['Geotrichum candidum (optional, for an even rind)',0.015,'Add with the culture']],imcu:45,floc:15,mult:3,cacl:true,
+ press:[[0.015,30,'Flip and redress'],[0.03,60,'Flip and redress'],[0.05,420,'Leave 6–8 h']],
+ salt:{m:'brine',hPerKg:6,minH:4},dry:2,age:{t:'12°C',rh:'90%'},profiles:[['Young',60],['Classic',90],['Aged',150]],def:1,rinds:['natural'],ratio:0.5,
+ tips:['Natural mold on the rind is expected. Brush it down and pat it to keep the rind even.','Raw milk gives the most complex flavour here.'],
+ steps:k=>[PREP(),HEAT(k,32),CULT(32,60),RENNET(k,32),CUT('1.5 cm (⅝")',32),HEAL(5,32),
+  [15,'Stir',32,'Stir gently for 15 minutes.',1],
+  [10,'Wash the curd',36,'Remove about {wash} of whey and replace it gradually with water at {T60} until the mix reaches {T36}.',1],
+  [40,'Stir out',36,'Stir 30–45 minutes until curds are firm.',1],
+  [10,'Press under the whey',null,'Let curds settle and gently push them into a mat under the whey for 10 minutes.',0],
+  [10,'Mold by hand',null,'Pour off the whey and pack the curd mat into the cloth-lined mold.',1],'PRESS']},
+/* ---------- Soft & blue ---------- */
+{id:'camembert',name:'Camembert',group:'Soft-ripened & blue',diff:2,kind:'bloomy',
+ blurb:'Small, unpressed rounds that grow a white bloom and ripen from the outside in.',
+ yield:0.13,cul:{type:'Mesophilic',tsp:0.125,u:10,ex:'MM100, MA11 or Flora Danica'},adj:[['Penicillium candidum (white mold)',0.03,'Add with the culture'],['Geotrichum candidum',0.015,'Add with the culture']],imcu:35,floc:15,mult:5,cacl:true,
+ salt:{m:'surface',pct:1.5},age:{t:'11–13°C, then fridge',rh:'90–95%'},profiles:[['Firm (chalky centre)',28],['Ripe',35],['Runny',45]],def:1,wrapDay:12,ratio:0.3,defMold:0.25,
+ tips:['Keep the ripening box humid but wipe off pooled water. Wet surfaces grow the wrong molds.','A centre still chalky after 5 weeks usually means too much acid or too cold a ripening box.'],
+ steps:k=>[PREP(),HEAT(k,32),CULT(32,75),RENNET(k,32),CUT('2 cm (¾")',32),
+  [30,'Rest & stir gently',32,'Rest 15 minutes, then gently lift and turn the curds twice over 15 minutes. Treat them gently.',0],
+  [10,'Remove whey',null,'Ladle off the whey down to the curd level.',1],
+  [20,'Ladle into molds',null,'Set {molds} on a draining mat over a tray. Ladle curds in thin slices, moving between molds so they fill evenly. They overflow at first: they shrink a lot.',1],
+  [60,'Drain, then first flip',null,'Drain at 20–22°C. After 1 hour, flip each mold (mat on top, flip the stack).',0],
+  [120,'Second flip',null,'Flip again.',0],
+  [240,'Third flip, then overnight',null,'Flip once more and leave to drain overnight at room temperature.',0]]},
+{id:'brie',name:'Brie',group:'Soft-ripened & blue',diff:2,kind:'bloomy',
+ blurb:'A wider, flatter bloomy cheese with a longer, more mushroomy ripening than Camembert.',
+ yield:0.13,cul:{type:'Mesophilic',tsp:0.125,u:10,ex:'MM100, MA11 or Flora Danica'},adj:[['Penicillium candidum (white mold)',0.03,'Add with the culture'],['Geotrichum candidum',0.015,'Add with the culture']],imcu:35,floc:16,mult:5,cacl:true,
+ salt:{m:'surface',pct:1.5},age:{t:'11–13°C, then fridge',rh:'90–95%'},profiles:[['Firm',42],['Ripe',49],['Runny',60]],def:1,wrapDay:14,ratio:0.2,defMold:1.0,
+ tips:['Wide molds drain unevenly. Flip on time and keep the draining room warm (20–22°C).','Same rules as Camembert: humid box, no standing water.'],
+ steps:k=>[PREP(),HEAT(k,32),CULT(32,75),RENNET(k,32),CUT('2.5 cm (1")',32),
+  [30,'Rest & stir gently',32,'Rest 15 minutes, then gently lift and turn the curds twice over 15 minutes.',0],
+  [10,'Remove whey',null,'Ladle off the whey down to the curd level.',1],
+  [20,'Ladle into molds',null,'Set {molds} on a draining mat. Ladle curds in thin slices, moving between molds to fill evenly.',1],
+  [60,'Drain, then first flip',null,'Drain at 20–22°C. Flip after 1 hour.',0],
+  [120,'Second flip',null,'Flip again.',0],
+  [240,'Third flip, then overnight',null,'Flip once more and leave overnight.',0]]},
+{id:'blue',name:'Blue (Stilton-style)',group:'Soft-ripened & blue',diff:3,kind:'blue',
+ blurb:'An open, unpressed curd that is pierced to let air reach the blue mold inside.',
+ yield:0.11,cul:{type:'Mesophilic',tsp:0.125,u:10,ex:'MM100, MA11 or Flora Danica'},adj:[['Penicillium roqueforti (blue mold)',0.03,'Add with the culture']],imcu:40,floc:15,mult:4,cacl:true,
+ salt:{m:'blue',pct:2.5},age:{t:'10–12°C',rh:'90–95%'},profiles:[['Young & mild',60],['Classic',90],['Strong',150]],def:1,ratio:0.9,
+ tips:['Never press a blue: the gaps between curds are where the blue grows.','P. roqueforti spreads. Age it away from other cheeses or in its own box.'],
+ steps:k=>[PREP(),HEAT(k,30),CULT(30,60),RENNET(k,30),CUT('2 cm (¾")',30),HEAL(10,30),
+  [30,'Stir gently',30,'Stir gently on and off for 30 minutes. No cooking: blue needs a moist, open curd.',1],
+  [15,'Drain',null,'Ladle the curds into a cloth-lined colander and let them drain 10–15 minutes, turning once.',1],
+  [60,'Let the curd firm',null,'Leave the curd to drain and firm for about an hour, covered to stay warm.',0],
+  [10,'Break & salt',null,'Break into walnut-sized pieces and toss with {salt} of cheese salt.',1],
+  [10,'Fill molds loosely',null,'Fill the mold(s) loosely: no pressing. Flip after 15 minutes, then every hour for 3 hours.',1]]},
+/* ---------- Brined ---------- */
+{id:'feta',name:'Feta',group:'Brined',diff:1,kind:'feta',
+ blurb:'Salty, tangy blocks stored in brine. Easy, quick and keeps for months.',
+ yield:0.15,cul:{type:'Mesophilic',tsp:0.125,u:10,ex:'MM100, MA11 or Flora Danica'},adj:[['Lipase (optional, traditional tang with cow milk)',0.06,'Dissolve in 30 ml cool water 20 min before adding']],imcu:45,floc:15,mult:4,cacl:true,
+ salt:{m:'feta'},age:{t:'4–8°C in brine',rh:'–'},profiles:[['Young',7],['Classic',30],['Sharp',60]],def:1,ratio:0.6,
+ tips:['Feta going soft in the brine? Add calcium chloride to the brine; it stops the surface dissolving.','Sheep or goat milk gives a more traditional flavour.'],
+ steps:k=>[PREP(),HEAT(k,30),CULT(30,60),RENNET(k,30),CUT('2 cm (¾")',30),HEAL(10,30),
+  [20,'Stir gently',30,'Stir gently for 20 minutes.',1],
+  [10,'Ladle & drain',null,'Ladle the curds into cloth-lined molds or a cloth-lined colander.',1],
+  [60,'Flip',null,'Flip after 1 hour.',0],
+  [720,'Drain overnight',null,'Leave 12–24 hours at room temperature, flipping 2–3 times. The curd firms as acid develops.',0]]},
+{id:'halloumi',name:'Halloumi',group:'Brined',diff:1,kind:'halloumi',
+ blurb:'Pressed, then poached in hot whey for the squeaky texture that grills without melting. Done in one day.',
+ yield:0.12,cul:null,adj:[],imcu:55,floc:13,mult:3,cacl:true,
+ press:[[0.05,30,'Flip'],[0.10,30,'Done when firm and springy']],
+ salt:{m:'halloumi'},age:{t:'Fridge, in brine',rh:'–'},profiles:[['Fresh',0],['Brine-matured',21]],def:0,ratio:0.4,
+ tips:['Poaching gives the squeak. Do not skip it.','Keep the whey from the make for poaching and as storage brine.'],
+ steps:k=>[PREP(),HEAT(k,32),RENNET(k,32),CUT('1 cm (½")',32),HEAL(10,32),
+  [20,'Warm & stir',40,'Raise to {T40} over 20 minutes, stirring.',1],
+  [20,'Stir out',40,'Hold at {T40} stirring 20 minutes.',1],
+  [10,'Drain, and keep the whey',null,'Drain curds into a cloth-lined colander set over the pot. Keep all the whey.',1],
+  'PRESS',
+  [15,'Heat the whey',90,'Heat the reserved whey to {T90}. It must not boil.',1],
+  [35,'Poach',90,'Cut the pressed cheese into blocks about 8 × 12 cm. Slide them into the whey. When they float, poach 10–15 minutes more. They turn rubbery and shiny.',1],
+  [15,'Salt & fold',null,'Drain on a rack. Rub with {salt} of salt and {mint} of dried mint, fold each block in half and let cool.',1]]},
+/* ---------- Fresh ---------- */
+{id:'mozzarella',name:'Mozzarella (30-minute)',group:'Fresh & quick',diff:1,kind:'fresh',
+ blurb:'Citric acid instead of culture, so it is stretched and on the table within the hour.',
+ yield:0.115,cul:null,adj:[],imcu:50,cacl:true,acid:'citric',
+ salt:{m:'mozz'},profiles:[['Fresh',0]],def:0,useBy:4,
+ tips:['Will not stretch? The milk was probably UHT/ultra-pasteurised, or the curd needs to be hotter. Try hotter water.','Stop stretching as soon as it is glossy: overworking makes it tough.'],
+ steps:k=>[PREP(),
+  [5,'Add citric acid',null,'Pour {milk} of cold milk into the pot. Dissolve {citric} of citric acid in {cwater} of cool water and stir it in. {cacl}',1],
+  [k.heatMin,'Warm the milk',32,'Heat to {T32}, stirring. It may start to look slightly curdled.',1],
+  [5,'Add rennet',32,'Take off the heat. Stir in {rennet} diluted in {rwater} of cool water for 30 seconds, then cover and leave 5 minutes.',0],
+  [5,'Cut',32,'The curd should be like soft custard. Cut into 2.5 cm (1") squares.',1],
+  [10,'Warm the curds',41,'Return to low heat and bring to {T41}, stirring slowly. Off the heat, stir 2–5 more minutes.',1],
+  [5,'Scoop & drain',null,'Scoop curds into a colander and press gently to remove whey.',1],
+  [15,'Stretch',null,'Heat a pot of water to {T80} with {salt} of salt. Dip the curd in a ladle (or use gloves) until it reaches {T57} inside and turns glossy, then stretch and fold like taffy until smooth. Shape balls and drop into iced water.',1]]},
+{id:'ricotta',name:'Ricotta (whole milk)',group:'Fresh & quick',diff:1,kind:'fresh',
+ blurb:'Heat, acid, drain. Twenty minutes and no rennet or culture. Works with any milk, even UHT.',
+ yield:0.12,cul:null,adj:[],imcu:0,cacl:false,acid:'ricotta',
+ salt:{m:'ricotta'},profiles:[['Fresh',0]],def:0,useBy:5,
+ tips:['Do not stir after the acid goes in: it breaks the curds into grains.','Replace 10–20% of the milk with cream for a richer ricotta.'],
+ steps:k=>[PREP(),
+  [k.heatMin+10,'Heat the milk',90,'Heat {milk} of milk with {salt} of salt to {T90}, stirring often so it does not catch.',1],
+  [5,'Add the acid',90,'Take off the heat. Gently stir in {acid} for 5 seconds only.',1],
+  [10,'Rest',null,'Leave 10 minutes. Curds separate from yellowish whey.',0],
+  [20,'Ladle & drain',null,'Ladle the curds into a cloth-lined colander. Drain 10 minutes for soft, up to 1 hour for firm.',0]]},
+{id:'paneer',name:'Paneer',group:'Fresh & quick',diff:1,kind:'fresh',molded:true,
+ blurb:'Boiled milk set with lemon or vinegar, pressed into a firm block for frying and curries.',
+ yield:0.17,cul:null,adj:[],imcu:0,cacl:false,acid:'paneer',
+ press:[[0.03,45,'Until firm']],
+ salt:{m:'none'},profiles:[['Fresh',0]],def:0,useBy:4,ratio:0.4,
+ tips:['Rinse the curds in cold water to remove the sour taste, then press while still warm.','Chill the pressed block before cutting for clean cubes.'],
+ steps:k=>[PREP(),
+  [k.heatMin+10,'Bring to the boil',95,'Bring {milk} of milk to a gentle boil, stirring so it does not catch.',1],
+  [5,'Add the acid',95,'Lower the heat and stir in {acid} a little at a time until the curds separate cleanly from greenish whey.',1],
+  [10,'Drain & rinse',null,'Pour into a cloth-lined colander. Rinse briefly with cold water, then gather and twist the cloth to squeeze out whey.',1],
+  'PRESS']},
+{id:'chevre',name:'Chèvre (fresh goat)',group:'Fresh & quick',diff:1,kind:'fresh',
+ blurb:'A slow, lactic set overnight with a few drops of rennet, then hung to drain. Very little hands-on time.',
+ yield:0.17,cul:{type:'Mesophilic',tsp:0.08,u:5,ex:'MA4001, MM100 or a chèvre blend'},adj:[],imcu:5,cacl:true,
+ salt:{m:'chevre'},profiles:[['Fresh',0]],def:0,useBy:10,prefer:'goat',
+ tips:['A warmer room sets faster; much below 20°C the set can take 24 hours.','Roll logs in herbs, ash or cracked pepper.'],
+ steps:k=>[PREP(),HEAT(k,22),
+  [5,'Add culture & rennet',22,'Sprinkle {culture} over the milk, wait 2 minutes and stir in. Add {rennet} diluted in {rwater} of cool water and stir 30 seconds. {cacl2}',1],
+  [900,'Set overnight',22,'Cover and leave 12–18 hours at 20–22°C. It is ready when it is a solid yogurt-like mass with whey on top, pulling away from the side.',0],
+  [10,'Ladle into cloth',null,'Ladle the curd into a cloth-lined colander.',1],
+  [480,'Hang to drain',null,'Tie the cloth and hang it 6–12 hours: shorter for creamy, longer for a firm cheese to roll in herbs.',0],
+  [5,'Salt & shape',null,'Mix in {salt} of salt. Shape into logs or small molds and add herbs or ash if you like.',1]]}
+];
+const BY={};CHEESES.forEach(c=>BY[c.id]=c);
+
+/* ---------------- State ---------------- */
+function defaultStart(){const d=new Date();d.setSeconds(0,0);if(d.getHours()>=9)d.setDate(d.getDate()+1);d.setHours(8,0);return toLocalInput(d);}
+function toLocalInput(d){const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;}
+const DEF={cheese:'cheddar',sizeMode:'mold',moldKg:1.4,moldCount:1,diam:'',targetKg:1.4,milkHave:15,species:'cow',treat:'homog',rennetType:'standard',rennetIMCU:200,labelMl:2.5,labelL:10,tabL:20,culMode:'tsp',pktU:50,pktG:'',caclForm:'liquid',units:'metric',start:defaultStart(),profile:{},rind:{},floc:'',readyBy:''};
+let S=Object.assign({},DEF);
+try{const saved=JSON.parse(localStorage.getItem('cheese-planner-v1')||'null');if(saved)S=Object.assign({},DEF,saved,{floc:''});}catch(e){}
+function persist(){try{localStorage.setItem('cheese-planner-v1',JSON.stringify(S));}catch(e){}}
+
+/* ---------------- Formatting ---------------- */
+const imp=()=>S.units==='imp';
+function fT(c){if(imp())return Math.round(c*9/5+32)+'°F';return (Math.round(c*2)/2)+'°C';}
+function fKg(kg){if(imp()){const lb=kg*2.20462;return lb<1?Math.round(lb*16)+' oz':(lb<20?lb.toFixed(1):Math.round(lb))+' lb';}return kg<1?Math.round(kg*1000)+' g':(kg<20?kg.toFixed(kg<10?2:1):Math.round(kg))+' kg';}
+function fKgBoth(kg){return imp()?`${fKg(kg)} (${kg<1?Math.round(kg*1000)+' g':kg.toFixed(1)+' kg'})`:fKg(kg);}
+function fL(L){if(imp()){const g=L/3.78541;return g<1?(L*1.0567).toFixed(1)+' qt':g.toFixed(2)+' gal';}return (L<10?L.toFixed(1):Math.round(L*2)/2)+' L';}
+function fLBoth(L){return imp()?`${fL(L)} (${L.toFixed(1)} L)`:fL(L);}
+function fG(g){const s=g<10?g.toFixed(1):Math.round(g);return imp()?`${s} g (${(g/28.35).toFixed(g<28?2:1)} oz)`:`${s} g`;}
+const FR=[[1/64,'1/64'],[1/32,'1/32'],[1/16,'1/16'],[1/8,'1/8'],[3/16,'3/16'],[1/4,'1/4'],[3/8,'3/8'],[1/2,'1/2'],[5/8,'5/8'],[3/4,'3/4'],[7/8,'7/8'],[1,'1'],[1.25,'1¼'],[1.5,'1½'],[1.75,'1¾'],[2,'2'],[2.5,'2½'],[3,'3']];
+function fTsp(t){if(t<1/90)return 'a tiny pinch (under 1/64 tsp)';if(t>3.2){const tb=Math.round(t/3*2)/2;return tb+' tbsp';}let best=FR[0],bd=1e9;for(const f of FR){const d=Math.abs(Math.log(t/f[0]));if(d<bd){bd=d;best=f;}}return best[1]+' tsp';}
+function fMl(ml){if(ml<0.3){const dr=Math.max(1,Math.round(ml/0.05));return `${dr} drop${dr>1?'s':''} (≈${ml.toFixed(2)} ml)`;}const s=ml<10?(Math.round(ml*100)/100).toString():Math.round(ml).toString();return `${s} ml (≈${fTsp(ml/4.93)})`;}
+function fDur(m){m=Math.round(m);if(m<60)return m+' min';const h=Math.floor(m/60),r=m%60;return r?`${h} h ${r} min`:`${h} h`;}
+function fClock(d){return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
+function fDate(d){return d.toLocaleDateString('en-IE',{weekday:'short',day:'numeric',month:'short'});}
+function fDateY(d){return d.toLocaleDateString('en-IE',{weekday:'short',day:'numeric',month:'short',year:'numeric'});}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function strip(h){return h.replace(/<[^>]+>/g,'');}
+function addMin(d,m){return new Date(d.getTime()+m*60000);}
+function dayStart(d){const x=new Date(d);x.setHours(0,0,0,0);return x;}
+function addDays(d,n){const x=dayStart(d);x.setDate(x.getDate()+n);return x;}
+function daysBetween(a,b){return Math.round((dayStart(b)-dayStart(a))/86400000);}
+function tempColor(c){const t=Math.max(0,Math.min(1,(c-15)/(95-15)));const h=205-t*190;return `hsl(${h} 55% ${42-t*4}%)`;}
+
+/* ---------------- Core calculation ---------------- */
+function compute(){
+  const c=BY[S.cheese], sp=SPECIES[S.species];
+  const yPerL=c.yield*sp.y;
+  const molded=['pressed','bloomy','blue','feta','halloumi'].includes(c.kind)||c.molded;
+  const n=Math.max(1,Math.round(+S.moldCount||1));
+  let totalKg,milkL;
+  if(S.sizeMode==='milk'){milkL=Math.max(0.5,+S.milkHave||1);totalKg=milkL*yPerL;}
+  else{totalKg=S.sizeMode==='mold'?Math.max(0.05,+S.moldKg||0.1)*n:Math.max(0.05,+S.targetKg||0.1);milkL=Math.ceil(totalKg/yPerL*1.05*2)/2;}
+  const perMold=totalKg/n;
+  const ratio=c.ratio||0.5;
+  const estD=Math.cbrt(perMold/(1.1*Math.PI/4*ratio))*10; // cm
+  const diam=(+S.diam>0)?+S.diam:estD;
+  const area=Math.PI*(diam/2)**2;
+  const k={heatMin:Math.round(Math.min(60,Math.max(15,10+1.5*milkL)))};
+  const flocBase=(+S.floc>0)?+S.floc:c.floc;
+  k.rennetDur=c.mult?Math.round(flocBase*c.mult):5;
+  const x={c,sp,yPerL,molded,n,totalKg,milkL,perMold,diam,estD,area,k,warns:[],ing:[],tok:{}};
+  const T=x.tok;
+  T.milk=fLBoth(milkL);T.pot=fL(Math.ceil(milkL*1.25));
+  // culture
+  if(c.cul){
+    const tsp=c.cul.tsp*milkL/10, units=milkL*c.cul.u/100;
+    let amt,note=`${c.cul.type} DVI culture, e.g. ${c.cul.ex}`;
+    if(S.culMode==='units'){const pk=+S.pktU||50, frac=units/pk;amt=`${units.toFixed(units<1?2:1)} U`;note+=`. That is ${(frac*100).toFixed(frac<0.1?1:0)}% of a ${pk} U pack`;if(+S.pktG>0)note+=` ≈ ${(frac*S.pktG).toFixed(2)} g (weigh on a 0.01 g scale)`;note+='. Store the rest of the pack sealed in the freezer.';}
+    else amt=fTsp(tsp);
+    T.culture=`${amt} of ${c.cul.type.toLowerCase()} culture`;
+    x.ing.push(['Culture',amt,note]);
+  }
+  const adjTxt=[];
+  for(const a of c.adj){const t=fTsp(a[1]*milkL/10);x.ing.push([a[0],t,a[2]]);adjTxt.push(`${t} ${a[0].replace(/ \(.*\)/,'')}`);}
+  T.adj=adjTxt.length?`Add ${adjTxt.join(' and ')} at the same time. `:'';
+  // calcium chloride
+  let caclMlL=TREAT[S.treat].cacl; if(S.treat==='raw'&&S.species==='goat')caclMlL=0.15;
+  T.cacl='';T.cacl2='';
+  if(c.cacl){
+    if(caclMlL>0&&S.caclForm!=='none'){
+      const ml=caclMlL*milkL, amt=S.caclForm==='flakes'?fG(caclMlL*0.55*milkL):fMl(ml);
+      const w=Math.max(30,Math.round(ml*10/5)*5);
+      T.cacl=`When the milk is lukewarm, stir in ${amt} of calcium chloride diluted in ${w} ml of cool water.`;T.cacl2=T.cacl;
+      x.ing.push(['Calcium chloride',amt,`${S.caclForm==='flakes'?'Dry flakes':'30–33% solution'}, diluted in ${w} ml cool water. Restores calcium lost in pasteurising/chilling for a firm set.`]);
+    } else if(caclMlL>0){T.cacl='(No calcium chloride: expect a softer set and allow a few extra minutes before cutting.)';x.warns.push('Pasteurised milk without calcium chloride sets softer. It still works, but buy some (about €5) for firmer curds and better yield.');}
+    else {T.cacl='Raw milk needs no calcium chloride.';}
+  }
+  // rennet
+  if(c.imcu>0){
+    const imcuNeed=c.imcu*milkL*sp.r; let amt,note;
+    if(S.rennetType==='tablet'){const tabs=milkL/(+S.tabL||20)*(c.imcu/50)*sp.r;amt=tabs>=1?`${(Math.round(tabs*4)/4)} tablet${tabs>1.1?'s':''}`:`≈ ${fracTab(tabs)} of a tablet`;note='Crush and dissolve fully in the water before adding.';}
+    else{let ml;if(S.rennetType==='label')ml=milkL*((+S.labelMl||2.5)/(+S.labelL||10))*(c.imcu/50)*sp.r;else{const str=S.rennetType==='custom'?(+S.rennetIMCU||200):RSTR[S.rennetType];ml=imcuNeed/str;}amt=fMl(ml);x.rennetMl=ml;note=ml<1?'Measure with a 1 ml syringe or drops from a pipette.':'Measure with a syringe for accuracy.';}
+    const w=Math.max(30,Math.min(125,Math.round((x.rennetMl||1)*20/5)*5));
+    T.rennet=amt;T.rwater=`${w} ml`;
+    x.ing.push(['Rennet',amt,`${note} Dilute in ${w} ml cool non-chlorinated water just before use. Target ≈${c.imcu} IMCU per litre${sp.r!==1?` (reduced for ${sp.l.toLowerCase()} milk)`:''}.`]);
+  }
+  T.floc=c.mult;T.cutAt=fDur(k.rennetDur);
+  // acid
+  if(c.acid==='citric'){const g=1.6*milkL;T.citric=fG(g);T.cwater=`${Math.max(60,Math.round(milkL*15/10)*10)} ml`;x.ing.push(['Citric acid',fG(g),`≈${fTsp(g/4.6)}. Dissolve in ${T.cwater} cool water.`]);}
+  if(c.acid==='ricotta'){const g=1.3*milkL;T.acid=`${fG(g)} citric acid dissolved in 60 ml water (or ${Math.round(16*milkL)} ml white vinegar)`;x.ing.push(['Citric acid',fG(g),`≈${fTsp(g/4.6)}, or ${Math.round(16*milkL)} ml white vinegar / lemon juice instead.`]);}
+  if(c.acid==='paneer'){T.acid=`${Math.round(30*milkL)} ml lemon juice (or ${Math.round(25*milkL)} ml white vinegar)`;x.ing.push(['Lemon juice',`${Math.round(30*milkL)} ml`,`or ${Math.round(25*milkL)} ml white vinegar. Add gradually: you may not need it all.`]);}
+  // wash water
+  T.wash=fL(milkL*(c.washFrac!=null?c.washFrac:(c.id==='gouda'?0.33:0.25)));
+  T.flavtxt='';
+  if(c.flav&&c.flav.length){const parts=c.flav.map(f=>{const d=FLAV[f];const g=d[1]*totalKg;x.ing.push([d[0],fG(g),'Mixed into the curd before molding.']);return `${fG(g)} ${d[0].toLowerCase()}`;});T.flavtxt=`Mix in ${parts.join(' and ')}.`;}
+  T.molds=`${n} mold${n>1?'s':''}`;
+  // salt
+  x.salt=saltPlan(x);
+  // milk itself first row
+  x.ing.unshift(['Milk',fLBoth(milkL),`${sp.l}, ${TREAT[S.treat].l}${c.milkNote?'. '+c.milkNote:''}. Expected yield ≈ ${fKg(totalKg)} (${(yPerL*100).toFixed(1)}% of milk weight; varies ±10% with season and fat).`]);
+  // warnings
+  if(S.treat==='uht'&&c.imcu>0)x.warns.push('UHT, ultra-pasteurised and long-life milk will not form a proper rennet curd. Use fresh pasteurised or raw milk for this cheese (UHT is fine for ricotta and paneer).');
+  if(S.treat==='homog'&&['camembert','brie','blue','alpine','parmesan'].includes(c.id))x.warns.push('Homogenised milk works but gives a softer, wetter curd for this style. Non-homogenised or raw milk gives better results.');
+  if(S.treat==='raw'){const minAge=c.profiles[S.profile[c.id]??c.def][1];if(minAge<60)x.warns.push('Raw-milk cheese eaten before 60 days of aging carries a higher food-safety risk, especially for pregnant people, young children and the elderly. Use milk from a trusted, tested source.');}
+  if(c.prefer==='goat'&&S.species!=='goat')x.warns.push('Chèvre is a goat-milk cheese. Cow milk works with the same method but makes a milder, softer fromage blanc.');
+  if(c.id==='mozzarella'&&S.species==='goat')x.warns.push('Goat milk stretches poorly. Expect a softer, less stretchy mozzarella.');
+  if(c.id==='parmesan'&&S.species==='cow')x.warns.push('Small home wheels lose moisture fast. Under about 2 kg, check weight monthly and oil the rind if it cracks.');
+  // steps & timeline
+  x.steps=buildSteps(x);
+  return x;
+}
+function fracTab(t){const opts=[[1/8,'⅛'],[1/4,'¼'],[1/3,'⅓'],[1/2,'½'],[2/3,'⅔'],[3/4,'¾'],[1,'1']];let b=opts[0],bd=9;for(const o of opts){const d=Math.abs(o[0]-t);if(d<bd){bd=d;b=o;}}return b[1];}
+
+function saltPlan(x){
+  const c=x.c,s=c.salt||{m:'none'},T=x.tok,o={rows:[],html:''};
+  const W=x.totalKg;
+  if(s.m==='dry'){const gg=W*1.08*s.pct*10;T.salt=fG(gg);x.ing.push(['Cheese salt',fG(gg),`Non-iodised, ${s.pct}% of milled curd weight. Mixed into the curd before pressing.`]);o.html=`<p>Salt is mixed into the curd before molding: <b class="num">${fG(gg)}</b> of non-iodised cheese salt (${s.pct}% of the curd). Add it in three parts so it absorbs evenly.</p>`;}
+  if(s.m==='brine'){const h=Math.max(s.minH,s.hPerKg*x.perMold);const vol=Math.max(2,Math.ceil(W*4));o.brineH=h;
+    x.ing.push(['Salt for brine',fG(vol*360),`For ${fL(vol)} of saturated brine. Make it a day ahead and keep it at 10–13°C.`]);
+    o.html=`<p>Saturated brine, made a day ahead: <b class="num">${fL(vol)}</b> water + <b class="num">${fG(vol*360)}</b> non-iodised salt (stir until no more dissolves) + <b class="num">${fMl(vol*1.3)}</b> calcium chloride + <b class="num">${fMl(vol*1.3)}</b> white vinegar. Keep it at 10–13°C.</p><p>Float each ${fKg(x.perMold)} wheel for <b class="num">${fDur(h*60)}</b>. Sprinkle a little salt on the top surface, and flip halfway. The brine can be strained and reused for years; top up with salt.</p>`;}
+  if(s.m==='surface'){const per=x.perMold*1000*s.pct/100;T.salt=fG(per);x.ing.push(['Cheese salt',fG(per*x.n),`${fG(per)} per cheese (${s.pct}% of its weight), rubbed on the day after making.`]);o.html=`<p>The morning after making, unmold and salt each cheese with <b class="num">${fG(per)}</b> (${s.pct}% of its weight): half over the top and sides, flip, and the rest over the bottom.</p>`;}
+  if(s.m==='blue'){const g=W*1.1*s.pct*10;T.salt=fG(g);x.ing.push(['Cheese salt',fG(g),`${s.pct}% of curd weight, tossed through before molding.`]);o.html=`<p>Toss <b class="num">${fG(g)}</b> of salt through the broken curd before molding. Over the first 3 days, rub a light pinch over the surface each time you turn it.</p>`;}
+  if(s.m==='feta'){const g=W*30;const vol=Math.max(1,Math.ceil(W*2));x.ing.push(['Salt',fG(g+vol*80),`${fG(g)} to dry-salt the blocks + ${fG(vol*80)} for ${fL(vol)} of 8% storage brine.`]);o.html=`<p>Day 1: cut into 3–4 cm cubes and roll them in <b class="num">${fG(g)}</b> of salt. Leave on a rack at 15°C for a day.</p><p>Day 2: store in 8% brine: <b class="num">${fL(vol)}</b> water + <b class="num">${fG(vol*80)}</b> salt + <b class="num">${fMl(vol*1)}</b> calcium chloride + 1 tsp vinegar per litre. Keep in the fridge.</p>`;}
+  if(s.m==='halloumi'){const g=W*20;T.salt=fG(g);T.mint=fTsp(Math.max(0.5,W*1));x.ing.push(['Salt',fG(g),'Rubbed on after poaching. Optional storage brine: whey with 10% salt.']);x.ing.push(['Dried mint',T.mint,'Traditional, optional.']);o.html=`<p>After poaching, rub the blocks with <b class="num">${fG(g)}</b> of salt and the mint. Eat fresh, or store covered in the cooled whey with 10% salt added (100 g per litre) in the fridge for up to a month.</p>`;}
+  if(s.m==='mozz'){const g=Math.max(5,W*15);T.salt=fG(g*3);x.ing.push(['Salt',fG(g*3),'Dissolved in the stretching water.']);o.html=`<p>Salt goes into the hot stretching water (<b class="num">${fG(g*3)}</b>). Taste a piece and add a little salt by hand while stretching if you like it saltier.</p>`;}
+  if(s.m==='ricotta'){const g=1.5*x.milkL;T.salt=fG(g);x.ing.push(['Salt',fG(g),'Added to the milk before heating.']);o.html=`<p><b class="num">${fG(g)}</b> of salt goes into the milk before heating.</p>`;}
+  if(s.m==='chevre'){const g=W*10;T.salt=fG(g);x.ing.push(['Salt',fG(g),'1% of the drained cheese. Taste and adjust.']);o.html=`<p>Mix <b class="num">${fG(g)}</b> of salt (about 1%) into the drained cheese. Taste and adjust.</p>`;}
+  if(s.m==='none'){o.html='<p>No salting needed. Season the dish you cook it in.</p>';}
+  return o;
+}
+
+function buildSteps(x){
+  const c=x.c, raw=c.steps(x.k), out=[];
+  for(const s of raw){
+    if(s==='PRESS'){
+      (c.press||[]).forEach((p,i)=>{const kg=p[0]*x.area;out.push({dur:p[1],title:`Press ${i+1} of ${c.press.length}: ${fKg(kg)}`,temp:null,body:`${fKgBoth(kg)} on each mold for ${fDur(p[1])}. ${p[2]}.${i===0?' Redress means: take the cheese out, unwrap, flip, rewrap smoothly and return.':''}`,hands:0,press:true,kg});});
+      continue;
+    }
+    const [dur,title,temp,body,hands,key]=s;
+    out.push({dur,title,temp,body:fill(body,x.tok),hands,key});
+  }
+  return out;
+}
+function fill(str,tok){let s=str;for(let i=0;i<2;i++){s=s.replace(/\{(\w+)\}/g,(m,k)=>tok[k]!==undefined?tok[k]:m);}return s.replace(/\{T(\d+(?:\.\d+)?)\}/g,(m,t)=>fT(+t)).replace(/\s+\./g,'.');}
+
+/* ---------------- Aging events ---------------- */
+function timeline(x){
+  let t=new Date(S.start||defaultStart());if(isNaN(t))t=new Date(defaultStart());
+  const rows=[];let hands=0,pressStart=null;
+  for(const s of x.steps){rows.push(Object.assign({at:new Date(t)},s));if(s.hands)hands+=s.dur;if(s.press&&!pressStart)pressStart=new Date(t);t=addMin(t,s.dur);}
+  return {rows,start:rows[0].at,end:t,hands,pressStart};
+}
+function profileIdx(c){const i=S.profile[c.id];return (i!==undefined&&c.profiles[i])?i:c.def;}
+function rindId(c){if(!c.rinds)return null;const r=S.rind[c.id];return c.rinds.includes(r)?r:c.rinds[0];}
+
+function series(arr,from,to,every,title,detail,kind,base){
+  if(to<from)return;const count=Math.floor((to-from)/every)+1;
+  arr.push({date:addDays(base,from),day:from,every,count,title,detail,kind});
+}
+function events(x,tl,opts){
+  const c=x.c, ev=[], base=dayStart(tl.start), pIdx=opts&&opts.profile!==undefined?opts.profile:profileIdx(c);
+  const ready=c.profiles[pIdx][1], rind=opts&&opts.rind!==undefined?opts.rind:rindId(c);
+  const at=(date,title,detail,kind,timed)=>ev.push({date,day:daysBetween(base,date),title,detail,kind,timed});
+  at(tl.start,`Make ${c.name}`,`${fLBoth(x.milkL)} milk → ${fKg(x.totalKg)} cheese. Hands-on about ${fDur(tl.hands)}.`,'make',{end:tl.pressStart||tl.end});
+  if(c.kind==='pressed'){
+    const pe=tl.end;const pressed=c.press&&c.press.length;at(pe,pressed?'Take out of the press':'Unmold',`${pressed?'Unwrap':'Turn out of the mold'} and weigh. Expect about ${fKg(x.perMold)} per wheel.`,'press',{end:addMin(pe,15)});
+    let d0=daysBetween(base,pe);
+    if(c.salt.m==='brine'){const h=x.salt.brineH;at(addMin(pe,15),'Into the brine',`Float in saturated brine for ${fDur(h*60)}. Flip halfway.`,'salt',{end:addMin(pe,30)});const out=addMin(pe,15+h*60);at(out,'Out of the brine','Lift out, pat dry and set on a mat at 15–18°C.','salt',{end:addMin(out,15)});d0=daysBetween(base,out);}
+    const dry=c.dry||2;
+    series(ev,d0+1,d0+dry,1,'Air-dry & turn','Room at 15–18°C, on a mat, loosely covered. Turn twice a day until the surface is dry to the touch.','turn',base);
+    const rd=d0+dry+1, R=RINDS[rind];
+    if(c.smoke)at(addDays(base,rd),'Cold-smoke','Before finishing the rind: cold-smoke the dry wheel for 2–4 hours, keeping the smoke below 25°C. Rest it 1 day before waxing or sealing.','care');
+    if(c.warmRoom){at(addDays(base,rd+7),'Warm room for eyes','Move to 18–21°C for about 3 weeks. Propionic bacteria make the eyes; the wheel may swell slightly. Keep turning.','care');at(addDays(base,rd+28),'Back to the cave',`Return to ${c.age.t}.`,'care');}
+    if(c.boozy)series(ev,rd+1,Math.min(rd+28,ready),7,'Wash with wine or ale','Wipe the rind with wine, cider or ale (with a pinch of salt) for colour and flavour.','care',base);
+    at(addDays(base,rd),`Finish the rind: ${R.l}`,fill(R.apply,{})+` Then move to the cave: ${c.age.t}, ${c.age.rh} humidity.`,'care');
+    if(R.turn==='weekly')series(ev,rd+7,ready,7,'Turn the wheel',R.care,'turn',base);
+    else if(R.wash){series(ev,rd+1,Math.min(rd+30,ready),2,'Turn & wash the rind','Wipe all over with a cloth dipped in light brine (50 g salt per litre), then flip.','care',base);series(ev,rd+37,ready,7,'Turn & wash the rind','Weekly brine wipe and flip.','care',base);}
+    else{series(ev,rd+1,Math.min(14,ready),1,'Turn the wheel','Flip so moisture spreads evenly. Wipe the shelf.','turn',base);series(ev,15,Math.min(60,ready),3,'Turn the wheel',R.care,'turn',base);series(ev,63,ready,7,'Turn the wheel',R.care,'turn',base);
+      if(R.brush)series(ev,rd+7,ready,7,'Brush the rind','Dry-brush the rind to keep molds and mites in check.','care',base);}
+    if(c.id==='parmesan'&&rind==='natural')series(ev,rd+21,ready,30,'Oil the rind','Rub a thin film of olive oil over the rind to stop cracking.','care',base);
+  }
+  if(c.kind==='bloomy'){
+    const w=c.wrapDay;
+    at(addDays(base,1),'Unmold & salt',`Salt each cheese with ${x.tok.salt} (half on top and sides, flip, rest on the bottom). Move to a ripening box at 11–13°C, 90–95% humidity.`,'salt');
+    series(ev,2,w-1,1,'Turn & wipe the box','Flip each cheese and wipe condensation from the lid. Bloom should start showing around day 5–7.','turn',base);
+    at(addDays(base,w),'Wrap & move to the fridge','Fully covered in white bloom: wrap in two-ply cheese paper and move to 4–7°C.','care');
+    series(ev,w+3,ready,3,'Turn the wrapped cheese','Flip and press the centre gently to judge ripeness.','turn',base);
+  }
+  if(c.kind==='blue'){
+    series(ev,1,4,1,'Turn in the mold','Keep at 18–20°C. Flip and rub a pinch of salt over the top.','turn',base);
+    at(addDays(base,5),'Unmold & into the cave',`Unmold and move to ${c.age.t}, ${c.age.rh} humidity.`,'care');
+    series(ev,6,20,1,'Turn the cheese','Flip daily.','turn',base);
+    at(addDays(base,21),'Pierce','Push a sanitised skewer right through from top to bottom on a 2 cm grid. Air in the holes lets the blue grow.','care');
+    series(ev,24,ready,3,'Turn the cheese','Flip and scrape off any sticky or unwanted rind growth.','turn',base);
+    at(addDays(base,35),'Pierce again','Repeat the piercing between the first holes.','care');
+    if(ready>55)at(addDays(base,50),'Wrap in foil','Scrape the rind smooth and wrap tightly in foil. This slows the blue on the surface and keeps the paste creamy.','care');
+  }
+  if(c.kind==='feta'){
+    at(addDays(base,1),'Cut & dry-salt','Cut into 3–4 cm blocks and roll in salt. Rest on a rack at about 15°C for a day.','salt');
+    at(addDays(base,2),'Into the brine','Pack into a jar and cover with 8% brine. Store in the fridge.','salt');
+  }
+  if(c.kind==='halloumi'){at(tl.end,'Store or eat','Eat fresh, or store in salted whey (10%) in the fridge.','salt',{end:addMin(tl.end,15)});}
+  if(c.kind==='fresh'){at(addDays(base,c.useBy),'Use by','Keep covered in the fridge.','mile');}
+  if(c.kind!=='fresh'){
+    if(pIdx>0)at(addDays(base,c.profiles[0][1]),`First taste: ${c.profiles[0][0]}`,'Taste a wedge or take a plug with a cheese iron to see how it is coming along.','mile');
+    at(addDays(base,ready),`Ready: ${c.profiles[pIdx][0]}`,`${ready} days from make.`,'mile');
+  }
+  ev.sort((a,b)=>a.date-b.date||(a.timed?0:1)-(b.timed?0:1));
+  return {ev,ready,readyDate:addDays(base,ready)};
+}
+
+/* ---------------- Render ---------------- */
+const $=s=>document.querySelector(s);
+let X,TL,EV;
+function render(){
+  if(!BY[S.cheese])S.cheese='cheddar';
+  X=compute();TL=timeline(X);EV=events(X,TL);
+  const c=X.c;
+  // cheese card
+  $('#cheeseCard').innerHTML=`<div><b>${esc(c.name)}</b> <span class="dots" aria-label="difficulty ${c.diff} of 3">${'●'.repeat(c.diff)}${'○'.repeat(3-c.diff)}</span></div><div>${c.blurb}</div><div class="muted">Ages ${c.profiles.length>1?c.profiles[0][1]+'–'+c.profiles[c.profiles.length-1][1]+' days':c.profiles[0][1]?c.profiles[0][1]+' days':'not at all: eat fresh'}</div>`;
+  // size labels
+  $('#lbl-moldKg').hidden=S.sizeMode!=='mold';$('#lbl-targetKg').hidden=S.sizeMode!=='target';$('#lbl-milkHave').hidden=S.sizeMode!=='milk';
+  $('#lbl-diam').hidden=!X.molded;
+  $('#diamHint').textContent=X.molded?(+S.diam>0?`Press weights use your ${S.diam} cm mold.`:`Estimated ${X.estD.toFixed(1)} cm from the capacity. Enter your mold's real inner diameter for exact press weights.`):'This style is not molded or pressed.';
+  $('#lbl-imcu').hidden=S.rennetType!=='custom';$('#lbl-label').hidden=S.rennetType!=='label';$('#lbl-tab').hidden=S.rennetType!=='tablet';
+  $('#lbl-units').hidden=S.culMode!=='units';
+  // tiles
+  const pIdx=profileIdx(c);
+  const sizeTxt=S.sizeMode==='milk'?`${X.n} × ${fKg(X.perMold)}`:`${X.n} × ${fKg(X.perMold)} mold`;
+  $('#tiles').innerHTML=[
+    ['Milk to use',fLBoth(X.milkL).split(' (')[0],S.sizeMode==='milk'?'as entered':`${SPECIES[S.species].l.toLowerCase()} milk, includes 5% margin`,true],
+    ['Expected cheese',fKg(X.totalKg),sizeTxt],
+    ['Make day',fDur(TL.hands)+' hands-on',`${fClock(TL.start)} start${TL.pressStart?', in press by '+fClock(TL.pressStart):', done '+(daysBetween(TL.start,TL.end)?fDate(TL.end)+' ':'')+fClock(TL.end)}`],
+    ['Ready',c.kind==='fresh'?(daysBetween(TL.start,TL.end)?fDate(TL.end)+' ':'')+fClock(TL.end):fDate(EV.readyDate),c.kind==='fresh'?'same day':`${c.profiles[pIdx][0].toLowerCase()}, ${EV.ready} days`]
+  ].map(t=>`<div class="tile${t[3]?' hi':''}"><span class="k">${t[0]}</span><span class="v">${esc(t[1])}</span><span class="s">${esc(t[2])}</span></div>`).join('');
+  // warnings
+  $('#warns').innerHTML=X.warns.map(w=>`<div class="warn">${esc(w)}</div>`).join('');
+  // ingredients
+  $('#ingSub').textContent=`for ${fLBoth(X.milkL)} of milk`;
+  $('#ingTbl').innerHTML='<thead><tr><th>Ingredient</th><th>Amount</th><th>Notes</th></tr></thead><tbody>'+X.ing.map(r=>`<tr><td>${esc(r[0])}<div class="note-m">${esc(r[2])}</div></td><td class="amt">${esc(r[1])}</td><td class="note">${esc(r[2])}</td></tr>`).join('')+'</tbody>';
+  // equipment
+  const eq=[`Pot, ${X.tok.pot}+ (stainless or enamel)`,'Digital thermometer','Long knife or curd knife','Slotted spoon / ladle','Colander','Cheesecloth or butter muslin'];
+  if(X.c.cul||X.c.imcu)eq.push('1 ml & 5 ml syringes','Measuring spoons (to 1/32 tsp)');
+  if(X.molded)eq.push(`${X.n} × mold${X.diam?`, ≈${X.diam.toFixed(0)} cm`:''}`);
+  if(X.c.press)eq.push(`Press or weights up to ${fKg(Math.max(...X.c.press.map(p=>p[0]))*X.area)}`);
+  if(X.c.salt&&X.c.salt.m==='brine')eq.push('Brine tub big enough to float the wheel');
+  if(['pressed','bloomy','blue'].includes(X.c.kind))eq.push('Draining mats','Aging space: wine fridge or cool room at '+X.c.age.t.split(',')[0]);
+  if(X.c.kind==='bloomy'||X.c.kind==='blue')eq.push('Lidded plastic box for ripening','Cheese paper or foil');
+  if(rindId(X.c)==='wax')eq.push('Cheese wax & natural-bristle brush');
+  if(rindId(X.c)==='vac')eq.push('Vacuum sealer & bags');
+  eq.push('pH meter or strips (optional)');
+  $('#equip').innerHTML=eq.map(e=>`<span class="chip">${esc(e)}</span>`).join('');
+  // floc card
+  $('#flocCard').hidden=!X.c.mult;
+  $('#cutOut').textContent=X.c.mult?`${fDur(X.k.rennetDur)} after rennet`:'';
+  if(document.activeElement!==$('#flocIn'))$('#flocIn').value=S.floc;
+  $('#flocIn').placeholder=X.c.mult?`expected ≈ ${X.c.floc}`:'';
+  // timeline
+  const sd=dayStart(TL.start);
+  $('#tlSub').textContent=`${fDateY(TL.start)} · ${fDur((TL.end-TL.start)/60000)} start to finish`;
+  $('#timeline').innerHTML=TL.rows.map(r=>{const dd=daysBetween(sd,r.at);return `<li><div class="clock">${fClock(r.at)}${dd?`<span class="day">${fDate(r.at)}</span>`:''}</div><div><div class="head"><h3>${esc(r.title)}</h3>${r.temp!=null?`<span class="temp" style="background:${tempColor(r.temp)}">${fT(r.temp)}</span>`:''}<span class="dur">${fDur(r.dur)}</span>${r.hands?'<span class="tag hands">hands-on</span>':'<span class="tag">waiting</span>'}</div><p class="body">${r.body}</p></div></li>`;}).join('')
+    +`<li><div class="clock">${fClock(TL.end)}${daysBetween(sd,TL.end)?`<span class="day">${fDate(TL.end)}</span>`:''}</div><div><div class="head"><h3>${X.c.kind==='pressed'?'Out of the press':'Make complete'}</h3></div><p class="body">${X.c.kind==='fresh'||X.c.kind==='halloumi'?'Ready to eat.':'Carry on with the Aging plan tab.'}</p></div></li>`;
+  // press
+  $('#pressCard').hidden=!X.c.press;
+  if(X.c.press){
+    $('#pressSub').textContent=`per mold, ${X.diam.toFixed(1)} cm diameter (${Math.round(X.area)} cm²)`;
+    $('#pressTbl').innerHTML='<thead><tr><th>Stage</th><th>Weight on follower</th><th>Pressure</th><th>Time</th><th>Then</th></tr></thead><tbody>'+X.c.press.map((p,i)=>{const kg=p[0]*X.area;return `<tr class="press-row"><td>${i+1}</td><td class="amt">${fKgBoth(kg)}</td><td class="amt">${(p[0]*98.07).toFixed(1)} kPa · ${(p[0]*14.22).toFixed(2)} psi</td><td class="amt">${fDur(p[1])}</td><td class="note">${esc(p[2])}</td></tr>`;}).join('')+'</tbody>';
+    $('#pressHint').textContent='Weights are per mold. With a lever (Dutch) press, divide by the lever ratio. A screw or spring press with a gauge: use the pressure column. Bricks ≈ 2–3 kg each; a 5 L water bottle = 5 kg.';
+  }
+  // salt
+  $('#saltBody').innerHTML=X.salt.html;
+  $('#tips').innerHTML=X.c.tips.map(t=>`<li>${esc(t)}</li>`).join('');
+  renderAging();renderCave();
+}
+function renderAging(){
+  const c=X.c,pIdx=profileIdx(c),rid=rindId(c);
+  $('#profile').innerHTML=c.profiles.map((p,i)=>`<option value="${i}"${i===pIdx?' selected':''}>${esc(p[0])}${c.kind==='fresh'?'':` (${p[1]} days${p[1]>=60?', ≈'+Math.round(p[1]/30)+' months':''})`}</option>`).join('');
+  $('#lbl-rind').hidden=!c.rinds;
+  if(c.rinds)$('#rind').innerHTML=c.rinds.map(r=>`<option value="${r}"${r===rid?' selected':''}>${esc(RINDS[r].l)}</option>`).join('');
+  const cond=c.kind==='fresh'?[['Store','Fridge, 2–5°C'],['Humidity','covered'],['Keeps',c.useBy+' days']]:[['Temperature',c.age.t],['Humidity',c.age.rh],['Time',EV.ready+' days']];
+  $('#cond').innerHTML=cond.map(k=>`<div><div class="k">${k[0]}</div><div class="v">${esc(imp()?k[1].replace(/(\d+)(?:–(\d+))?°C/g,(m,a,b)=>fT(+a).replace('°F','')+(b?'–'+fT(+b):'°F')):k[1])}</div></div>`).join('');
+  $('#caveHint').textContent=['pressed','blue','bloomy'].includes(c.kind)?'No cave? A wine fridge set to 12°C with a tray of water works. For small cheeses, a lidded plastic box inside the fridge salad drawer keeps humidity high. Bigger wheels ripen a little slower than the times shown.':'';
+  // ready-by
+  const rb=S.readyBy?new Date(S.readyBy+'T12:00'):null;
+  if(rb&&!isNaN(rb)&&c.kind!=='fresh'){
+    const need=EV.ready, make=addDays(rb,-need), today=dayStart(new Date());
+    const late=make<today;
+    $('#readyOut').innerHTML=late?`<div class="warn">Too late for <b>${c.profiles[pIdx][0]}</b>: it needs ${need} days. Pick a younger profile or a quicker cheese.</div>`:`Make on or before <b>${fDateY(make)}</b>. Buy milk the day before.<div class="btns" style="margin-top:6px"><button class="btn" type="button" id="useMake">Plan the make for that day</button></div>`;
+    const b=$('#useMake');if(b)b.onclick=()=>{const s=new Date(S.start);make.setHours(s.getHours()||8,s.getMinutes()||0);S.start=toLocalInput(make);$('#start').value=S.start;persist();render();toast('Make date updated');};
+  } else $('#readyOut').innerHTML=c.kind==='fresh'?'<span class="muted">Fresh cheeses are ready the day you make them.</span>':'<span class="muted">Pick a date to see the latest day you can start.</span>';
+  // calendar
+  $('#calSub').textContent=`made ${fDate(TL.start)}`;
+  $('#calTbl').innerHTML='<thead><tr><th>When</th><th>Day</th><th>Job</th></tr></thead><tbody>'+EV.ev.map(e=>{
+    const when=e.count>1?`${fDate(e.date)} → ${fDate(addDays(e.date,e.every*(e.count-1)))}`:(e.timed?`${fDate(e.date)} ${fClock(e.date)}`:fDate(e.date));
+    const freq=e.count>1?` <span class="muted small">(${e.every===1?'daily':e.every===7?'weekly':'every '+e.every+' days'}, ${e.count}×)</span>`:'';
+    return `<tr class="${e.kind==='mile'?'mile':''}"><td class="when">${when}</td><td class="num muted">${e.day}</td><td><span class="kind k-${e.kind}"></span>${esc(e.title)}${freq}<div class="small muted">${esc(strip(e.detail))}</div></td></tr>`;}).join('')+'</tbody>';
+}
+
+/* ---------------- Cave ---------------- */
+function loadCave(){try{return JSON.parse(localStorage.getItem('cheese-cave-v1')||'[]');}catch(e){return [];}}
+function saveCave(a){try{localStorage.setItem('cheese-cave-v1',JSON.stringify(a));return true;}catch(e){return false;}}
+let pendingDel=null;
+function batchEvents(b){
+  if(!BY[b.s.cheese])return null;
+  const saveS=S;S=Object.assign({},DEF,b.s);
+  const x=compute(),tl=timeline(x),e=events(x,tl);
+  S=saveS;return {x,tl,e};
+}
+function expand(e){const out=[];const n=e.count||1;for(let i=0;i<n;i++)out.push(Object.assign({},e,{date:e.count?addDays(e.date,i*e.every):e.date}));return out;}
+function renderCave(){
+  const cave=loadCave(), today=dayStart(new Date()), end=addDays(today,14);
+  if(!cave.length){$('#caveList').innerHTML='<p class="muted small" style="margin:0">No batches yet. Set up a cheese, then use <b>Save this batch to My cave</b> on the Aging plan tab. Batches stay in this browser.</p>';$('#caveTasks').innerHTML='<p class="muted small" style="margin:0">Jobs for your saved batches will appear here.</p>';return;}
+  const tasks=[];
+  $('#caveList').innerHTML=cave.map((b,i)=>{
+    const be=batchEvents(b);if(!be)return `<div class="batch"><h3>${esc(b.label)}</h3><p class="small muted" style="margin:0">Its recipe was deleted from the Recipe book.</p><div class="btns"><button class="btn danger" type="button" data-del="${i}">${pendingDel===i?'Tap again to remove':'Remove'}</button></div></div>`;const {x,tl,e}=be;const age=daysBetween(tl.start,today), pct=Math.max(0,Math.min(100,e.ready?age/e.ready*100:100));
+    e.ev.forEach(ev=>expand(ev).forEach(t=>{if(t.date>=today&&t.date<end)tasks.push({b:b.label,t});}));
+    const todays=e.ev.flatMap(expand).filter(t=>daysBetween(t.date,today)===0).map(t=>t.title);
+    const done=age>=e.ready;
+    return `<div class="batch"><div class="card-h"><h3>${esc(b.label)}</h3><span class="sub">${esc(x.c.name)} · ${fKg(x.totalKg)} · made ${fDateY(tl.start)}</span></div>
+      <div class="bar${done?' done':''}"><i style="width:${pct}%"></i></div>
+      <div class="small">${age<0?`Make day in ${-age} days`:done?`<b style="color:var(--ok)">Ready since ${fDate(e.readyDate)}</b> (${age} days old)`:`Day ${age} of ${e.ready} · ready ${fDate(e.readyDate)}`}${todays.length?` · <b>Today:</b> ${esc(todays.join(', '))}`:''}</div>
+      <div class="btns"><button class="btn" type="button" data-load="${i}">Open in planner</button><button class="btn danger" type="button" data-del="${i}">${pendingDel===i?'Tap again to remove':'Remove'}</button></div></div>`;
+  }).join('');
+  tasks.sort((a,b)=>a.t.date-b.t.date);
+  $('#caveTasks').innerHTML=tasks.length?'<div class="tbl-wrap"><table class="cal"><thead><tr><th>When</th><th>Batch</th><th>Job</th></tr></thead><tbody>'+tasks.map(k=>`<tr class="${k.t.kind==='mile'?'mile':''}"><td class="when">${daysBetween(today,k.t.date)===0?'<b>Today</b>':fDate(k.t.date)}</td><td>${esc(k.b)}</td><td><span class="kind k-${k.t.kind}"></span>${esc(k.t.title)}</td></tr>`).join('')+'</tbody></table></div>':'<p class="muted small" style="margin:0">Nothing due in the next two weeks.</p>';
+  document.querySelectorAll('[data-del]').forEach(btn=>btn.onclick=()=>{const i=+btn.dataset.del;if(pendingDel===i){const a=loadCave();a.splice(i,1);saveCave(a);pendingDel=null;toast('Batch removed');}else pendingDel=i;renderCave();});
+  document.querySelectorAll('[data-load]').forEach(btn=>btn.onclick=()=>{const b=loadCave()[+btn.dataset.load];S=Object.assign({},DEF,b.s,{units:S.units});syncInputs();persist();render();location.hash='aging';});
+}
+
+/* ---------------- Export ---------------- */
+function icsDate(d,timed){const p=n=>String(n).padStart(2,'0');return timed?`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}T${p(d.getHours())}${p(d.getMinutes())}00`:`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`;}
+function icsEsc(s){return strip(s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');}
+function buildIcs(){
+  const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Cheese Make Planner//EN','CALSCALE:GREGORIAN'];const stamp=icsDate(new Date(),true);
+  EV.ev.forEach((e,i)=>{L.push('BEGIN:VEVENT',`UID:cheese-${TL.start.getTime()}-${i}@planner`,`DTSTAMP:${stamp}`);
+    if(e.timed){L.push(`DTSTART:${icsDate(e.date,true)}`,`DTEND:${icsDate(e.timed.end,true)}`);}else{L.push(`DTSTART;VALUE=DATE:${icsDate(e.date)}`,`DTEND;VALUE=DATE:${icsDate(addDays(e.date,1))}`);}
+    if(e.count>1)L.push(`RRULE:FREQ=DAILY;INTERVAL=${e.every};COUNT=${e.count}`);
+    let desc=e.detail;if(e.kind==='make')desc+='\n\n'+TL.rows.map(r=>`${fClock(r.at)} ${r.title}${r.temp!=null?' @ '+fT(r.temp):''}`).join('\n');
+    L.push(`SUMMARY:${icsEsc('🧀 '+X.c.name+': '+e.title)}`,`DESCRIPTION:${icsEsc(desc)}`,'END:VEVENT');});
+  L.push('END:VCALENDAR');return L.join('\r\n');
+}
+function buildText(){
+  const c=X.c,o=[];
+  o.push(`${c.name.toUpperCase()}`,`${fLBoth(X.milkL)} ${SPECIES[S.species].l.toLowerCase()} milk → ${fKg(X.totalKg)} (${X.n} × ${fKg(X.perMold)})`,'');
+  if(X.warns.length){o.push('NOTES');X.warns.forEach(w=>o.push('! '+w));o.push('');}
+  o.push('INGREDIENTS');X.ing.forEach(r=>o.push(`- ${r[0]}: ${r[1]}  (${r[2]})`));o.push('');
+  o.push(`TIMELINE (${fDateY(TL.start)})`);TL.rows.forEach(r=>o.push(`${fClock(r.at)}  ${r.title}${r.temp!=null?' ['+fT(r.temp)+']':''} (${fDur(r.dur)})\n        ${strip(r.body)}`));o.push(`${fClock(TL.end)}  Done`,'');
+  if(c.press){o.push(`PRESS (per mold, ${X.diam.toFixed(1)} cm)`);c.press.forEach((p,i)=>o.push(`${i+1}. ${fKgBoth(p[0]*X.area)} for ${fDur(p[1])}, ${p[2]}`));o.push('');}
+  o.push('SALTING',strip(X.salt.html.replace(/<\/p><p>/g,'\n')),'');
+  o.push('AGING & CARE');EV.ev.forEach(e=>o.push(`${e.count>1?fDate(e.date)+' → '+fDate(addDays(e.date,e.every*(e.count-1)))+` (every ${e.every} d)`:fDate(e.date)}: ${e.title}. ${strip(e.detail)}`));
+  o.push('','TIPS');c.tips.forEach(t=>o.push('- '+t));
+  return o.join('\n');
+}
+async function copy(text,msg){try{await navigator.clipboard.writeText(text);toast(msg);return true;}catch(e){toast('Copy blocked. Select the text and copy it manually.');return false;}}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('on'),2200);}
+
+/* ---------------- Wiring ---------------- */
+function syncInputs(){
+  ['moldKg','moldCount','diam','targetKg','milkHave','species','treat','rennetType','rennetIMCU','labelMl','labelL','tabL','culMode','pktU','pktG','caclForm','start','readyBy'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=S[id]??'';});
+  $('#cheese').value=S.cheese;
+  document.querySelectorAll('input[name="sizeMode"]').forEach(r=>r.checked=r.value===S.sizeMode);
+  $('#u-metric').setAttribute('aria-pressed',S.units==='metric');$('#u-imp').setAttribute('aria-pressed',S.units==='imp');
+}
+function buildSelect(){
+  const groups={};CHEESES.forEach(c=>(groups[c.group]=groups[c.group]||[]).push(c));
+  const order=['My recipes','Fresh & quick','Brined','Soft-ripened & blue','Semi-hard, pressed','Hard, long aged'];
+  $('#cheese').innerHTML=order.filter(g=>groups[g]).map(g=>`<optgroup label="${g}">${groups[g].map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</optgroup>`).join('');
+  $('#cheese').value=S.cheese;
+}
+function init(){
+  buildSelect();
+  syncInputs();
+  $('#cheese').addEventListener('change',e=>{const old=BY[S.cheese],nw=BY[e.target.value];S.cheese=nw.id;S.floc='';
+    if(S.sizeMode==='mold'&&nw.defMold&&!old.defMold){S.moldKg=nw.defMold;S.moldCount=nw.defMold<0.5?4:1;S.diam='';}
+    else if(S.sizeMode==='mold'&&!nw.defMold&&old.defMold){S.moldKg=1.4;S.moldCount=1;S.diam='';}
+    else if(nw.defMold&&old.defMold&&nw.defMold!==old.defMold&&S.sizeMode==='mold'){S.moldKg=nw.defMold;S.diam='';}
+    if(nw.prefer==='goat'&&S.species==='cow')S.species='goat';
+    if(nw.kind==='fresh'&&!nw.molded&&S.sizeMode==='mold'){S.sizeMode='milk';S._autoMilk=true;}
+    else if((nw.kind!=='fresh'||nw.molded)&&S._autoMilk&&S.sizeMode==='milk'){S.sizeMode='mold';S._autoMilk=false;}
+    syncInputs();persist();render();});
+  ['moldKg','moldCount','diam','targetKg','milkHave','rennetIMCU','labelMl','labelL','tabL','pktU','pktG'].forEach(id=>$('#'+id).addEventListener('input',e=>{S[id]=e.target.value;persist();render();}));
+  ['species','treat','rennetType','culMode','caclForm','start','readyBy'].forEach(id=>$('#'+id).addEventListener('change',e=>{S[id]=e.target.value;persist();render();}));
+  document.querySelectorAll('input[name="sizeMode"]').forEach(r=>r.addEventListener('change',e=>{S.sizeMode=e.target.value;S._autoMilk=false;persist();render();}));
+  $('#flocIn').addEventListener('input',e=>{S.floc=e.target.value;render();});
+  $('#profile').addEventListener('change',e=>{S.profile=Object.assign({},S.profile,{[S.cheese]:+e.target.value});persist();render();});
+  $('#rind').addEventListener('change',e=>{S.rind=Object.assign({},S.rind,{[S.cheese]:e.target.value});persist();render();});
+  $('#u-metric').onclick=()=>{S.units='metric';syncInputs();persist();render();};
+  $('#u-imp').onclick=()=>{S.units='imp';syncInputs();persist();render();};
+  $('#copyText').onclick=()=>copy(buildText(),'Make sheet copied');
+  $('#copyIcs').onclick=async()=>{const t=buildIcs();$('#icsText').value=t;$('#icsBox').hidden=false;await copy(t,'Calendar copied');};
+  $('#saveBatch').onclick=()=>{const a=loadCave();const n=a.filter(b=>b.s.cheese===S.cheese).length+1;const s=Object.assign({},S);delete s.floc;
+    a.push({label:`${X.c.name.split(' (')[0]} #${n}`,s});if(saveCave(a)){toast('Saved to My cave');renderCave();}else toast('This browser blocked saving. Use Copy as calendar instead.');};
+  window.addEventListener('hashchange',route);
+  render();route();
+}
+function route(){const h=(location.hash||'#make').slice(1);
+  const lab=h.startsWith('lab');$('#planner').hidden=lab;$('#lab').hidden=!lab;
+  $('#mode-plan').toggleAttribute('aria-current',!lab);$('#mode-lab').toggleAttribute('aria-current',lab);
+  if(lab){const m=h.split('-')[1];if(['taste','like','custom','book'].includes(m)&&m!==L.method){L.method=m;persistLab();}renderLab(true);return;}
+  const id=['make','aging','cave'].includes(h)?h:'make';['make','aging','cave'].forEach(t=>{$('#tab-'+t).setAttribute('aria-selected',t===id);$('#p-'+t).classList.toggle('on',t===id);});}
+</script>
+<script>
+"use strict";
+/* ================= RECIPE LAB ================= */
+const clone=o=>JSON.parse(JSON.stringify(o));
+const r1=v=>Math.round(v*10)/10;
+const r5=v=>Math.round(v/5)*5;
+const ADJ={
+  candidum:['Penicillium candidum (white bloom)',0.03,'Add with the culture'],
+  geo:['Geotrichum candidum (wrinkled, even rind)',0.015,'Add with the culture'],
+  roqueforti:['Penicillium roqueforti (blue veins)',0.03,'Add with the culture'],
+  linens:['Brevibacterium linens (orange smear)',0.015,'Add with the culture and a pinch to the rind-wash brine'],
+  propionic:['Propionibacterium shermanii (eyes)',0.015,'Add with the culture'],
+  helveticus:['Lactobacillus helveticus (LH100, sweet & nutty)',0.03,'Add with the culture'],
+  lipase:['Lipase (piquant bite)',0.06,'Dissolve in 30 ml cool water 20 min before adding']
+};
+const FLAV={
+  pepper:['Cracked black pepper',8,true],
+  herbs:['Dried herbs (chive, garlic, herbes de Provence)',5,true],
+  chilli:['Chilli flakes',4,true],
+  cumin:['Cumin or caraway seed, toasted and simmered soft',8,true],
+  smoke:['Cold-smoked finish',0,false],
+  boozy:['Wine- or ale-washed rind',0,false]
+};
+const PRESSETS={none:[],light:[[0.015,30],[0.03,60],[0.05,420]],medium:[[0.03,15],[0.06,30],[0.08,720]],heavy:[[0.03,15],[0.06,30],[0.10,120],[0.13,600]],xheavy:[[0.025,15],[0.05,30],[0.10,120],[0.128,720]]};
+const PRESSL={none:'No press',light:'Light (tomme-style)',medium:'Medium (Jack, Gouda)',heavy:'Heavy (alpine)',xheavy:'Very heavy (cheddar)'};
+const PLEV=['none','light','medium','heavy','xheavy'];
+const STYLEL={press:'Drain & press into a mold',ladle:'Ladle into molds (soft cheeses)',loose:'Drain, break & fill loosely (blue)',hang:'Hang in cloth (fresh)'};
+const CULL={meso:'Mesophilic',thermo:'Thermophilic',mix:'Meso + thermo blend'};
+const FATL={whole:'Whole milk',part:'Part-skim (~2.5% fat)',cream:'Whole + 10% cream'};
+const SETL={rennet:'Rennet set',lactic:'Lactic set, overnight'};
+const SALTL={dry:'Dry-salt the curd',brine:'Brine the wheel',surface:'Rub salt on the surface',blue:'Salt the broken curd',feta:'Dry-salt, then store in brine',chevre:'Mix into the fresh curd',none:'No salt'};
+const RINDL={natural:'Natural, brushed',wax:'Waxed',coat:'Cheese coating',vac:'Vacuum-sealed',cloth:'Clothbound',washed:'Brine-washed (alpine)',smear:'Washed, pungent (B. linens)',bloomy:'White bloom',blue:'Blue, pierced',brine:'Stored in brine',fresh:'Fresh, no rind'};
+
+const D={set:'rennet',fat:'whole',cul:'meso',dose:1,aroma:false,adj:[],ripenT:32,ripenMin:45,imcu:45,mult:3,cut:1.5,heal:5,fore:15,wash:0,cookT:38,ramp:30,hold:30,underWhey:false,cheddar:0,style:'press',press:'medium',saltM:'brine',saltPct:2,saltH:6,dry:2,ageT:12,ageRH:85,days:60,rind:'natural',flav:[]};
+const mk=o=>Object.assign(clone(D),o);
+const LIB={
+  cheddar:mk({ripenT:31,imcu:50,cut:1.0,fore:0,hold:40,cheddar:105,saltM:'dry',saltPct:2.2,press:'xheavy',ageT:11,days:120,rind:'cloth'}),
+  alpine:mk({cul:'thermo',ripenT:33,ripenMin:30,imcu:40,mult:2.5,cut:0.5,cookT:52,ramp:45,hold:30,saltH:8,press:'heavy',dry:1,ageT:13,ageRH:90,days:240,rind:'washed'}),
+  parmesan:mk({fat:'part',cul:'thermo',ripenT:33,imcu:40,mult:2.5,cut:0.5,fore:10,cookT:53,ramp:45,hold:45,saltH:24,press:'heavy',dry:3,ageT:13,ageRH:82,days:365}),
+  jack:mk({imcu:50,cookT:39,saltM:'dry',saltPct:2,days:30,rind:'wax'}),
+  caerphilly:mk({ripenMin:40,imcu:50,cut:1.0,cookT:33,ramp:15,hold:40,cheddar:20,ageRH:87,days:42}),
+  gouda:mk({ripenMin:30,cut:1.0,fore:10,wash:33,hold:25,underWhey:true,saltH:8,dry:3,ageRH:82,days:120,rind:'coat'}),
+  tomme:mk({adj:['geo'],ripenMin:60,wash:25,cookT:36,hold:40,underWhey:true,press:'light',ageRH:90,days:90}),
+  camembert:mk({adj:['candidum','geo'],ripenMin:75,imcu:35,mult:5,cut:2.0,heal:0,fore:30,cookT:32,hold:0,style:'ladle',press:'none',saltM:'surface',saltPct:1.5,ageRH:92,days:35,rind:'bloomy'}),
+  brie:mk({adj:['candidum','geo'],ripenMin:75,imcu:35,mult:5,cut:2.5,heal:0,fore:30,cookT:32,hold:0,style:'ladle',press:'none',saltM:'surface',saltPct:1.5,ageRH:92,days:49,rind:'bloomy'}),
+  blue:mk({adj:['roqueforti'],ripenT:30,ripenMin:60,imcu:40,mult:4,cut:2.0,heal:10,fore:30,cookT:30,hold:0,style:'loose',press:'none',saltM:'blue',saltPct:2.5,ageT:11,ageRH:92,days:90,rind:'blue'}),
+  feta:mk({adj:['lipase'],ripenT:30,ripenMin:60,mult:4,cut:2.0,heal:10,fore:20,cookT:30,hold:0,style:'ladle',press:'none',saltM:'feta',ageT:6,ageRH:0,days:30,rind:'brine'}),
+  chevre:mk({set:'lactic',dose:0.65,ripenT:22,imcu:5,mult:3,style:'hang',press:'none',saltM:'chevre',dry:0,ageT:4,ageRH:0,days:0,rind:'fresh'})
+};
+const libName=id=>BY[id]?BY[id].name.split(' (')[0]:id;
+
+/* ---------- flavour model (0–10 scales) ---------- */
+const ATTR=[
+  ['moist','Creaminess','dry, grating','soft, spreadable',[['Hard',1.8],['Firm',4],['Soft',7.5]]],
+  ['tang','Tang','mellow','lemony, sour',[['Mellow',1.5],['Balanced',4],['Tangy',7]]],
+  ['sweet','Sweet & nutty','plain','caramel, nutty',[['Plain',1],['Some',3.5],['Very',6.5]]],
+  ['butter','Buttery richness','lean','rich, buttery',[['Lean',1.5],['Medium',3.5],['Rich',6]]],
+  ['earthy','Earthy & mushroom','clean','forest floor',[['Clean',0.5],['Some',2.5],['Earthy',5.5]]],
+  ['pungent','Pungent & blue','gentle','funky, blue',[['Gentle',0],['Some',2.5],['Funky',6]]],
+  ['sharp','Strength','young, mild','intense, aged',[['Mild',3.5],['Medium',5.5],['Strong',7.2]]],
+  ['salt','Salt','low','salty',[['Low',3.5],['Medium',5.5],['Salty',8]]]
+];
+function prof(s){
+  const cl=v=>Math.max(0,Math.min(10,v)), has=a=>s.adj.includes(a);
+  let m0;
+  if(s.set==='lactic'||s.style==='hang')m0=9;
+  else m0=6.5+(s.cut-1.2)-Math.max(0,s.cookT-32)*0.1-s.hold/60*0.4-(s.cheddar>0?0.6*Math.min(1,s.cheddar/105):0)
+    +({none:0.5,light:0,medium:-0.4,heavy:-0.8,xheavy:-0.9}[s.style==='press'?s.press:'none'])+({press:0,ladle:0.5,loose:0.3,hang:2.5}[s.style])+((s.mult||3)-3)*0.4;
+  m0=cl(m0);
+  const d=s.days, lg=Math.log10(d+1), ch=s.cheddar>0?Math.min(1,s.cheddar/105):0;
+  const moist=s.rind==='bloomy'?m0+0.3:s.rind==='brine'?m0-0.8:s.rind==='blue'?m0-lg*0.3:m0-lg*0.45;
+  const tang=3+(s.dose-1)*3+(s.ripenMin-45)/30*0.7+ch*1.5-s.wash/100*4+(s.set==='lactic'?4:0)+((s.style==='ladle'||s.style==='loose')&&s.rind!=='bloomy'?1:0)+(s.saltM==='feta'?1.5:0)-(s.cul==='thermo'?0.5:0)-(s.rind==='bloomy'&&d>30?1:0);
+  const sweet=1+{thermo:2.5,mix:1.2,meso:0}[s.cul]+(has('helveticus')?2:0)+(has('propionic')?3:0)+s.wash/100*4+Math.max(0,s.cookT-40)*0.15+(d>150?1.5:d>60?0.7:0);
+  const butter=2+(s.aroma?2.5:0)+{cream:2,part:-1.5,whole:0}[s.fat]+(s.cul==='meso'?1:0)+s.wash/100*2+(s.rind==='bloomy'?1:0);
+  const earthy=0.5+(has('candidum')?4:0)+(has('geo')?2:0)+({natural:2,cloth:1.5,washed:1.5,smear:1}[s.rind]||0)+(d>90&&s.rind==='natural'?1:0);
+  const pungent=(has('linens')?5:0)+(s.rind==='smear'?2:0)+(s.rind==='washed'?1.5:0)+(has('roqueforti')?6:0)+(has('lipase')?2.5:0)+(d>180?1:0);
+  const sharp=lg*2.8+(has('lipase')?1.5:0)+ch*0.5;
+  const salt={dry:s.saltPct/2.2*5.5,brine:3+Math.log2(Math.max(1,s.saltH)/2)*1.3,surface:s.saltPct*3,blue:s.saltPct*2.6,feta:8.5,chevre:3.5,none:1}[s.saltM];
+  return {moist:cl(moist),tang:cl(tang),sweet:cl(sweet),butter:cl(butter),earthy:cl(earthy),pungent:cl(pungent),sharp:cl(sharp),salt:cl(salt),m0};
+}
+function textureOf(m){return m>8?'Fresh, spreadable':m>6.5?'Soft':m>5?'Semi-soft':m>3?'Firm':m>1.5?'Hard':'Very hard, grating';}
+function kindOf(s){if(s.set==='lactic'||s.style==='hang'||s.rind==='fresh')return 'fresh';if(s.rind==='bloomy')return 'bloomy';if(s.rind==='blue')return 'blue';if(s.rind==='brine')return 'feta';if(s.days===0)return 'fresh';return 'pressed';}
+function minDays(s){const r=s.rind;if(r==='fresh')return 0;if(r==='bloomy')return 28;if(r==='blue')return 45;if(r==='brine')return 7;const m=prof(s).m0;return m<3.2?150:m<4.5?45:21;}
+
+/* ---------- checks ---------- */
+function labChecks(s){
+  const w=[];
+  if(s.set!=='lactic'){
+    if(s.cul==='meso'&&s.cookT>41)w.push(`Mesophilic cultures struggle above about 40°C. At ${fT(s.cookT)}, use a thermophilic or blended culture.`);
+    if(s.cul==='thermo'&&s.cookT<37&&s.style==='press')w.push('Thermophilic cultures are slow below about 37°C, so acidity may lag. Use mesophilic or a blend for a low cook.');
+    if(s.imcu>70)w.push('More than about 70 IMCU per litre of rennet can make the cheese bitter or rubbery.');
+    if(s.imcu<20)w.push('Very little rennet gives a slow, weak set. That only suits lactic cheeses.');
+    if(s.mult<2||s.mult>6)w.push('A flocculation multiplier outside 2–6 is unusual: 2–3 for hard cheeses, 3–4 for semi-soft, 5–6 for bloomy.');
+    if(s.cut<0.4)w.push('Curds smaller than 4 mm shatter and lose fat into the whey.');
+    if(s.wash>50)w.push('Replacing more than half the whey dilutes the curd so much it may not acidify.');
+  }
+  if(s.adj.includes('roqueforti')&&s.style==='press'&&['medium','heavy','xheavy'].includes(s.press))w.push('Blue needs an open texture to vein. Press lightly or not at all.');
+  if(s.adj.includes('candidum')&&s.rind!=='bloomy')w.push('P. candidum is in the cultures but the rind is not bloomy, so expect white patches on the rind.');
+  if(s.rind==='bloomy'&&s.style==='press'&&s.press!=='none')w.push('Bloomy cheeses are normally small and unpressed. A pressed bloomy wheel works but ripens slowly.');
+  if(s.rind==='blue'&&!s.adj.includes('roqueforti'))w.push('The rind is set to blue but P. roqueforti is not in the cultures.');
+  if(s.rind==='smear'&&!s.adj.includes('linens'))w.push('A pungent washed rind needs B. linens in the cultures or the wash.');
+  if(s.adj.includes('propionic')&&kindOf(s)!=='pressed')w.push('Eyes only form in pressed, elastic cheeses given a warm-room stage.');
+  if(['dry','surface','blue'].includes(s.saltM)&&s.saltPct<1.2)w.push('Under about 1.2% salt, aged cheese is prone to spoilage and bitterness.');
+  if(s.saltM==='dry'&&s.saltPct>3.2)w.push('Over about 3% salt stalls the culture and slows ripening.');
+  if(s.saltM==='brine'&&s.style!=='press')w.push('Brining suits pressed wheels. Soft curds are usually salted on the surface.');
+  if(s.ageT>15&&s.days>14)w.push('Aging above 15°C ripens fast but invites spoilage. 10–13°C is normal.');
+  if(s.ageRH&&s.ageRH<75&&s.days>14)w.push('Below 75% humidity, rinds crack and the cheese dries out.');
+  const p=prof(s);
+  if(s.set!=='lactic'&&p.m0>6.5&&s.days>120&&s.rind!=='blue')w.push('A curd this moist rarely ages past a few months: it can go soft, bitter or smell of ammonia. Dry it more (smaller cut, hotter cook) or age it for less time.');
+  if(p.m0<3.5&&s.days<45)w.push('A curd this dry needs months to develop. Young, it will be hard and bland.');
+  return w;
+}
+
+/* ---------- step generator ---------- */
+function holdText(s){const t=s.cookT;return t<36?'Keep stirring gently. Curds stay soft and moist; they should just hold their shape when pressed.':t<=44?'Stir until curds are firm and springy, holding together when squeezed but breaking apart easily.':'Stir until the curd is dry and grainy: a squeezed handful crumbles back into grains and squeaks on the teeth.';}
+function genSteps(s,k){
+  const T=s.ripenT,out=[PREP(),HEAT(k,T)],flav=s.flav.some(f=>FLAV[f]&&FLAV[f][2]);
+  if(s.set==='lactic'){
+    out.push([5,'Add culture & rennet',T,'Sprinkle {culture} over the milk, wait 2 minutes and stir in. {adj}Add {rennet} diluted in {rwater} of cool water and stir 30 seconds. {cacl2}',1],
+      [900,'Set overnight',T,`Cover and leave 12–18 hours at ${fT(T)}. It is ready when it is a solid yogurt-like mass with whey on top, pulling away from the side.`,0],
+      [10,'Ladle into cloth',null,'Ladle the curd into a cloth-lined colander.',1],
+      [480,'Hang to drain',null,'Tie the cloth and hang 6–12 hours: shorter for creamy, longer for firm.',0],
+      [5,'Salt & shape',null,'Mix in {salt} of salt. {flavtxt} Shape into logs or small molds.',1]);
+    return out;
+  }
+  out.push(CULT(T,s.ripenMin),RENNET(k,T),CUT(`${s.cut} cm`,T));
+  if(s.heal)out.push(HEAL(s.heal,T));
+  if(s.fore)out.push([s.fore,'Stir',T,s.style==='press'?`Stir gently for ${s.fore} minutes.`:`Over ${s.fore} minutes, gently lift and turn the curds 2–3 times. They are fragile.`,s.style==='press'?1:0]);
+  const cook=s.cookT>T+0.5;
+  if(s.wash>0){
+    out.push([10,'Remove whey',null,`Remove about {wash} of whey (${s.wash}% of the milk volume).`,1]);
+    out.push([10,'Wash the curd',cook?s.cookT:T,`Add water at {T60} a little at a time while stirring, until curds and whey reach {T${cook?s.cookT:T}}. Washing removes lactose, so the cheese ends sweeter and less acidic.`,1]);
+  } else if(cook)out.push([s.ramp,'Cook the curds',s.cookT,`Raise the temperature from {T${T}} to {T${s.cookT}} over ${s.ramp} minutes, stirring. Heating faster seals the curd surface and traps whey.`,1]);
+  if(s.hold>0)out.push([s.hold,'Stir out',s.cookT,holdText(s),1]);
+  if(s.underWhey)out.push([15,'Press under the whey',null,'Let the curds settle. Push them into a mat under the whey, then lay a plate with about 1 kg on top for 10–15 minutes. This stops air pockets.',0]);
+  if(s.style==='press'){
+    out.push([10,'Drain',null,'Let the curds settle, then pour off the whey through a cloth-lined colander.',1]);
+    const warm=Math.max(T,s.cookT);
+    if(s.cheddar>0)out.push([s.cheddar,'Cheddar the curd',warm,`Keep the drained curd in the pot, set in a water bath at {T${warm}}. Let it knit into a slab, cut it into pieces and flip them every 15 minutes for ${s.cheddar} minutes, stacking as they firm. It turns smooth and rubbery.`,0]);
+    const mill=s.cheddar>0;
+    if(s.saltM==='dry')out.push([15,mill?'Mill & salt':'Break up & salt',null,`${mill?'Cut the slabs into thumb-sized pieces':'Break the curd into small pieces'}. Mix in {salt} of cheese salt in 3 additions, 5 minutes apart.`,1]);
+    else if(mill)out.push([10,'Mill the curd',null,'Cut the slabs into thumb-sized pieces.',1]);
+    if(flav)out.push([5,'Mix in additions',null,'{flavtxt}',1]);
+    out.push([10,'Fill the mold',null,'Pack the warm curd into the cloth-lined mold, fold the cloth smoothly over the top and add the follower.',1]);
+    if(s.press!=='none')out.push('PRESS');
+    else out.push([720,'Drain in the mold overnight',null,'No press: flip the cheese in its mold after 30 minutes, 2 hours and before bed. Its own weight knits it.',0]);
+  } else if(s.style==='ladle'){
+    out.push([10,'Remove whey',null,'Ladle off the whey down to the curd level.',1]);
+    out.push([20,'Ladle into molds',null,`Set {molds} on a draining mat. Ladle curds in thin slices, moving between molds so they fill evenly.${flav?' {flavtxt} Sprinkle the additions between layers.':''}`,1]);
+    if(s.saltM==='feta')out.push([60,'Flip',null,'Flip after 1 hour.',0],[720,'Drain overnight',null,'Leave 12–24 hours at room temperature, flipping 2–3 times.',0]);
+    else out.push([60,'Drain, then first flip',null,'Drain at 20–22°C. Flip each mold after 1 hour.',0],[120,'Second flip',null,'Flip again.',0],[240,'Third flip, then overnight',null,'Flip once more and leave to drain overnight.',0]);
+  } else if(s.style==='loose'){
+    out.push([15,'Drain',null,'Ladle the curds into a cloth-lined colander and drain 10–15 minutes, turning once.',1],
+      [60,'Let the curd firm',null,'Leave about an hour, covered to stay warm.',0],
+      [10,'Break & salt',null,'Break into walnut-sized pieces and toss with {salt} of salt. {flavtxt}',1],
+      [10,'Fill molds loosely',null,'Fill the mold(s) loosely with no pressing. Flip after 15 minutes, then hourly for 3 hours.',1]);
+  } else {
+    out.push([10,'Ladle into cloth',null,'Ladle the curds into a cloth-lined colander.',1],[480,'Hang to drain',null,'Hang 6–12 hours.',0],[5,'Salt & shape',null,'Mix in {salt} of salt. {flavtxt}',1]);
+  }
+  return out;
+}
+
+/* ---------- spec → planner cheese ---------- */
+function specToCheese(s,meta){
+  const p=prof(s),kind=kindOf(s);
+  const y=(0.06+p.m0/10*0.1)*{part:0.92,whole:1,cream:1.06}[s.fat];
+  const culEx=s.aroma?'Flora Danica, MM100 or another aroma culture':{meso:'MA11, MM100 or MA4001',thermo:'TA61 or TA45',mix:'equal parts MA11 and TA61'}[s.cul];
+  const pressOn=s.style==='press'&&s.press!=='none';
+  const pr=pressOn?PRESSETS[s.press].map((st,i,a)=>[st[0],st[1],i===a.length-1?(st[1]>=600?'Leave overnight':'Leave until firm'):'Flip and redress']):null;
+  const days=kind==='bloomy'?Math.max(s.days,16):s.days;
+  const profiles=kind==='fresh'?[['Fresh',0]]:days>=30?[['First taste',Math.round(days/2)],['Target',days]]:[['Target',days]];
+  return {id:meta.id,name:meta.name,group:meta.group||'My recipes',diff:2,kind,custom:true,blurb:meta.blurb||'Your own recipe.',yield:y,
+    cul:{type:CULL[s.cul],tsp:0.125*s.dose,u:{meso:10,thermo:5,mix:7.5}[s.cul]*s.dose,ex:culEx},
+    adj:s.adj.filter(a=>ADJ[a]).map(a=>ADJ[a]),imcu:s.imcu,floc:Math.round(Math.min(40,Math.max(8,13*45/Math.max(1,s.imcu)))),mult:s.set==='lactic'?null:s.mult,cacl:true,
+    press:pr,salt:{m:s.saltM,pct:s.saltPct,hPerKg:s.saltH,minH:Math.max(2,s.saltH/2)},dry:s.dry,
+    age:{t:`${s.ageT}°C`,rh:s.ageRH?`${s.ageRH}%`:'–'},profiles,def:profiles.length-1,
+    rinds:kind==='pressed'?[RINDS[s.rind]?s.rind:'natural']:null,wrapDay:12,ratio:{press:0.55,ladle:kind==='bloomy'?0.3:0.6,loose:0.9,hang:0.5}[s.style],useBy:10,molded:s.style!=='hang',
+    washFrac:s.wash/100,flav:s.flav.filter(f=>FLAV[f]&&FLAV[f][2]),warmRoom:s.adj.includes('propionic')&&kind==='pressed',smoke:s.flav.includes('smoke'),boozy:s.flav.includes('boozy'),
+    milkNote:s.fat==='part'?'Use part-skim milk (about 2.5% fat): mix whole and skimmed 50:50':s.fat==='cream'?'Replace about 10% of the milk with double cream':'',
+    tips:labChecks(s).concat(['Log each batch in the Recipe lab book and adjust from your tasting notes.']),
+    steps:k=>genSteps(s,k)};
+}
+
+/* ---------- directional tweaks ---------- */
+const has=(s,a)=>s.adj.includes(a), addA=(s,a)=>{if(!has(s,a))s.adj.push(a);}, delA=(s,a)=>{s.adj=s.adj.filter(x=>x!==a);};
+const TW=[
+ {id:'texture',l:'Texture',minus:'Softer, creamier',plus:'Firmer, drier',fn(s,d,n){
+   if(s.set==='lactic'){n(d>0?'Hang the curd longer (12 h or more) for a firmer chèvre.':'Hang it for less time (4–6 h) for a creamier chèvre.');return;}
+   const cap=s.cul==='meso'?40:55;
+   if(d>0){const oc=s.cut;s.cut=r1(Math.max(0.4,s.cut*0.75));n(`Curd size ${oc} → ${s.cut} cm: smaller curds release more whey.`);
+     if(s.cookT<=s.ripenT+0.5){s.cookT=Math.min(cap,s.ripenT+4);s.ramp=20;s.hold=Math.max(s.hold,20);n(`Add a gentle cook to ${fT(s.cookT)}: heat drives out moisture.`);}
+     else{const o=s.cookT;s.cookT=Math.min(cap,s.cookT+2.5);if(o!==s.cookT)n(`Cook ${fT(o)} → ${fT(s.cookT)}: a hotter cook dries the curd.`);}
+     const oh=s.hold;s.hold=r5(s.hold*1.3);if(oh!==s.hold)n(`Stir-out ${oh} → ${s.hold} min.`);
+     if(s.style==='press'){const i=PLEV.indexOf(s.press);if(i<4){s.press=PLEV[Math.max(1,i+1)];n(`Press heavier: ${PRESSL[s.press].toLowerCase()}.`);}}
+   } else {const oc=s.cut;s.cut=r1(Math.min(3,s.cut*1.35));n(`Curd size ${oc} → ${s.cut} cm: bigger curds hold more moisture.`);
+     const o=s.cookT;s.cookT=Math.max(s.ripenT,s.cookT-2.5);if(o!==s.cookT)n(`Cook ${fT(o)} → ${fT(s.cookT)}.`);
+     const oh=s.hold;s.hold=r5(s.hold*0.7);if(oh!==s.hold)n(`Stir-out ${oh} → ${s.hold} min.`);
+     if(s.style==='press'){const i=PLEV.indexOf(s.press);if(i>1){s.press=PLEV[i-1];n(`Press lighter: ${PRESSL[s.press].toLowerCase()}.`);}}
+     if(s.mult<6){s.mult=Math.min(6,s.mult+0.5);n(`Cut later (${s.mult}× flocculation) for a softer, moister curd.`);}
+   }}},
+ {id:'tang',l:'Acidity',minus:'Milder',plus:'Tangier',fn(s,d,n){
+   if(d>0){s.dose=r1(Math.min(2,s.dose*1.3)*10)/10;s.ripenMin+=15;n(`Culture dose up to ${Math.round(s.dose*100)}% and ripen 15 min longer: more acid.`);if(s.wash>0){s.wash=Math.max(0,s.wash-15);n(`Less curd washing (${s.wash}% of whey): more lactose left for acid.`);}}
+   else{s.dose=Math.max(0.3,Math.round(s.dose*0.75*100)/100);s.ripenMin=Math.max(15,s.ripenMin-15);n(`Culture dose down to ${Math.round(s.dose*100)}% and a shorter ripen: less acid.`);
+     if(s.style==='press'&&s.cheddar===0&&s.set!=='lactic'){const o=s.wash;s.wash=Math.min(50,s.wash+15);n(o?`Wash more of the curd (${s.wash}% of whey).`:`Wash the curd (${s.wash}% of whey): replacing whey with warm water removes lactose, so less acid forms. This is the Gouda method.`);}
+     if(s.cheddar>0){s.cheddar=r5(s.cheddar*0.7);n(`Shorter cheddaring (${s.cheddar} min).`);}}}},
+ {id:'sweet',l:'Sweet & nutty',minus:'Less',plus:'More',fn(s,d,n){
+   if(d>0){addA(s,'helveticus');n('Add L. helveticus: breaks down bitter peptides into sweet, nutty notes.');if(s.cul==='meso'){s.cul='mix';n('Switch to a meso + thermo blend.');}if(s.style==='press'&&s.set!=='lactic'&&s.wash<50){s.wash=Math.min(50,s.wash+10);n(`Wash ${s.wash}% of the whey: sweeter paste.`);}}
+   else{delA(s,'helveticus');delA(s,'propionic');if(s.cul!=='meso'&&s.cookT<=42){s.cul='meso';n('Use a plain mesophilic culture.');}if(s.wash>0){s.wash=Math.max(0,s.wash-10);n(`Wash less (${s.wash}% of whey).`);}n('Remove sweetening adjuncts.');}}},
+ {id:'butter',l:'Richness',minus:'Leaner',plus:'Richer, buttery',fn(s,d,n){
+   if(d>0){if(!s.aroma){s.aroma=true;n('Use an aroma culture (Flora Danica type): diacetyl gives a buttery smell.');}if(s.fat!=='cream'){s.fat=s.fat==='part'?'whole':'cream';n(`Milk: ${FATL[s.fat].toLowerCase()}.`);}}
+   else{s.aroma=false;if(s.fat!=='part'){s.fat=s.fat==='cream'?'whole':'part';n(`Milk: ${FATL[s.fat].toLowerCase()}.`);}}}},
+ {id:'earthy',l:'Rind character',minus:'Cleaner',plus:'Earthier',fn(s,d,n){
+   if(d>0){addA(s,'geo');n('Add Geotrichum: a wrinkled rind with mushroomy, earthy notes.');if(['wax','coat','vac'].includes(s.rind)){s.rind='natural';n('Switch to a natural rind so the rind can flavour the paste.');}if(s.rind==='natural')s.ageRH=Math.max(s.ageRH,90);}
+   else{if(s.rind!=='bloomy')delA(s,'geo');if(['natural','cloth'].includes(s.rind)){s.rind='wax';n('Wax the wheel: no rind flavour.');}}}},
+ {id:'pungent',l:'Funk',minus:'Gentler',plus:'More pungent',fn(s,d,n){
+   if(d>0){if(s.rind==='blue'){addA(s,'lipase');n('Add lipase: sharper, peppery blue.');}
+     else if(['brine','fresh'].includes(s.rind)){addA(s,'lipase');n('Add lipase for a piquant, goaty tang.');}
+     else{if(s.rind==='bloomy'){delA(s,'candidum');n('Swap the white bloom for a washed rind: this heads towards Reblochon and Époisses.');}addA(s,'linens');s.rind='smear';s.ageRH=Math.max(s.ageRH,92);n('Add B. linens and wash the rind every 2 days: an orange, meaty, pungent rind.');}}
+   else{delA(s,'linens');delA(s,'lipase');if(s.rind==='smear'){s.rind='natural';}n('Remove pungent cultures and rind washing.');}}},
+ {id:'blue',l:'Blue veins',plus:'Add blue',fn(s,d,n){
+   if(['brine','fresh'].includes(s.rind)){n('Blue mold needs an aged, open-textured cheese. This style cannot vein.');return;}
+   addA(s,'roqueforti');delA(s,'candidum');s.rind='blue';s.underWhey=false;if(s.style==='press'&&PLEV.indexOf(s.press)>1){s.press='light';}s.ageT=11;s.ageRH=92;s.days=Math.max(s.days,60);
+   n('Add P. roqueforti, press lightly at most (this overrides any heavier press above), and pierce the cheese at 3 and 5 weeks so air reaches the mold.');}},
+ {id:'eyes',l:'Holes (eyes)',plus:'Add eyes',fn(s,d,n){
+   if(kindOf(s)!=='pressed'){n('Eyes only form in pressed, elastic cheeses. This style cannot form them.');return;}
+   addA(s,'propionic');if(s.cul==='meso')s.cul='mix';s.underWhey=true;n('Add propionic bacteria and give a 3-week warm-room stage (18–21°C). Pre-pressing under whey keeps the paste closed, so the gas forms round eyes.');}},
+ {id:'sharp',l:'Piquancy',minus:'Less bite',plus:'More bite',fn(s,d,n){
+   if(d>0){addA(s,'lipase');n('Add lipase: free fatty acids give a peppery bite.');if(s.days>0){s.days=Math.round(s.days*1.3);n(`Age a bit longer (${s.days} days).`);}}
+   else{delA(s,'lipase');if(s.days>0){s.days=Math.max(minDays(s),Math.round(s.days*0.8));n(`Age a little less (${s.days} days).`);}}}},
+ {id:'salt',l:'Salt',minus:'Less salty',plus:'Saltier',fn(s,d,n){
+   const f=d>0?1.2:0.8;s.saltPct=r1(s.saltPct*f);s.saltH=Math.max(1,Math.round(s.saltH*f*2)/2);n(s.saltM==='brine'?`Brine ${s.saltH} h per kg.`:`Salt ${s.saltPct}% of curd weight.`);}},
+ {id:'age',l:'Aging',minus:'Younger, sooner',plus:'Aged longer',fn(s,d,n){
+   if(s.days===0){n('Fresh cheese: no aging to change.');return;}
+   const o=s.days;s.days=d>0?Math.round(s.days*2):Math.max(minDays(s),Math.round(s.days*0.5));n(`Aging ${o} → ${s.days} days.`);
+   if(d>0&&prof(s).m0>6&&s.days>120)n('A soft curd will not keep that long: firm the texture too.');}}
+];
+function applyTweaks(base,tw,flav){
+  const s=clone(base),notes=[];
+  for(const t of TW){const v=tw[t.id]||0;for(let i=0;i<Math.abs(v);i++)t.fn(s,Math.sign(v),m=>notes.push([t.l,m]));}
+  if(flav)s.flav=flav.slice();
+  return {spec:s,notes};
+}
+
+/* ---------- taste matching ---------- */
+const LIMITS=[[0,'Any time'],[7,'Within a week'],[30,'Within a month'],[90,'Within 3 months'],[180,'Within 6 months']];
+function dist(p,t){let a=0,n=0;for(const[k]of ATTR){if(t[k]==null)continue;a+=(p[k]-t[k])**2;n++;}return n?Math.sqrt(a/n):0;}
+function fitLimit(s,lim){if(!lim||s.days<=lim)return true;if(minDays(s)>lim)return false;s.days=Math.max(minDays(s),lim);return true;}
+function targetOf(){const t={};for(const a of ATTR){const v=L.taste[a[0]];t[a[0]]=v==null?null:a[4][v][1];}return t;}
+function rankStyles(){
+  const t=targetOf(),lim=L.taste.limit,out=[];
+  for(const id in LIB){const s=clone(LIB[id]);if(!fitLimit(s,lim))continue;out.push({id,d:dist(prof(s),t)});}
+  return out.sort((a,b)=>a.d-b.d);
+}
+function optimize(baseId,t,lim){
+  const base=clone(LIB[baseId]);fitLimit(base,lim);let tw={};
+  let best=dist(prof(base),t);
+  for(let it=0;it<6;it++){let cand=null;
+    for(const w of TW)for(const dir of [-1,1]){if(dir<0&&!w.minus)continue;const cur=tw[w.id]||0;if(cur&&Math.sign(cur)!==dir)continue;if(Math.abs(cur+dir)>(w.minus?2:1))continue;
+      const tt=Object.assign({},tw,{[w.id]:cur+dir});const r=applyTweaks(base,tt);if(!fitLimit(r.spec,lim))continue;const dd=dist(prof(r.spec),t);
+      if(dd<best-0.12&&(!cand||dd<cand.d))cand={tw:tt,d:dd};}
+    if(!cand)break;tw=cand.tw;best=cand.d;}
+  return {tw,d:best,base};
+}
+const matchPct=d=>Math.max(0,Math.round(100-d*15));
+
+/* ---------- iterate from tasting ---------- */
+const ISSUES={
+  dry:['Too dry or crumbly',(s,n)=>{s.cut=r1(Math.min(3,s.cut+0.25));s.cookT=Math.max(s.ripenT,s.cookT-1.5);s.hold=r5(s.hold*0.8);if(s.style==='press'){const i=PLEV.indexOf(s.press);if(i>1)s.press=PLEV[i-1];}n(`Bigger curd (${s.cut} cm), cooler cook (${fT(s.cookT)}), shorter stir (${s.hold} min), lighter press.`);}],
+  wet:['Too soft, wet or slumped',(s,n)=>{s.cut=r1(Math.max(0.4,s.cut-0.2));const cap=s.cul==='meso'?40:55;s.cookT=Math.min(cap,s.cookT+1.5);s.hold=r5(s.hold*1.2+5);n(`Smaller curd (${s.cut} cm), hotter cook (${fT(s.cookT)}), longer stir (${s.hold} min).`);}],
+  sour:['Too sour or acidic',(s,n)=>{s.dose=Math.max(0.3,Math.round(s.dose*0.8*100)/100);s.ripenMin=Math.max(15,s.ripenMin-10);if(s.style==='press'&&!s.cheddar&&s.set!=='lactic')s.wash=Math.min(50,s.wash+10);n(`Culture ${Math.round(s.dose*100)}%, ripen ${s.ripenMin} min${s.wash?`, wash ${s.wash}% of whey`:''}.`);}],
+  bitter:['Bitter',(s,n)=>{s.imcu=Math.round(s.imcu*0.85);s.dose=Math.max(0.3,Math.round(s.dose*0.85*100)/100);if(['dry','surface','blue'].includes(s.saltM))s.saltPct=r1(s.saltPct+0.2);n(`Less rennet (${s.imcu} IMCU/L) and culture (${Math.round(s.dose*100)}%), slightly more salt. Microbial rennet often turns bitter in long-aged cheese: try calf rennet.`);}],
+  bland:['Bland or flat',(s,n)=>{s.dose=r1(Math.min(2,s.dose*1.15)*10)/10;s.ripenMin+=10;s.aroma=true;if(s.days>0)s.days=Math.round(s.days*1.3);n(`More culture (${Math.round(s.dose*100)}%), longer ripen, aroma culture${s.days?`, age ${s.days} days`:''}.`);}],
+  rubbery:['Rubbery or springy',(s,n)=>{s.imcu=Math.round(s.imcu*0.9);s.dose=r1(Math.min(2,s.dose*1.1)*10)/10;n(`Less rennet (${s.imcu} IMCU/L), a bit more culture. Rubbery usually means too little acid before pressing.`);}],
+  crack:['Cracked or split rind',(s,n)=>{s.ageRH=Math.min(95,(s.ageRH||85)+3);s.dry=Math.max(1,s.dry-1);n(`Humidity ${s.ageRH}%, air-dry ${s.dry} day(s). Keep curd above 30°C going into the mold so it knits.`);}],
+  gas:['Swelled early, many tiny holes',(s,n)=>{s.saltPct=r1(s.saltPct*1.1);s.saltH=Math.round(s.saltH*1.1*2)/2;n('Early gas with many tiny holes is contamination (coliforms or yeasts). Sanitise everything, use the freshest milk and keep the culture active. Slightly more salt.');}],
+  knit:['Curds did not knit (gaps inside)',(s,n)=>{if(s.style==='press'){s.underWhey=true;const i=PLEV.indexOf(s.press);if(i<4)s.press=PLEV[Math.max(1,i+1)];}n('Pre-press under the whey, press heavier, and mold the curd while it is still warm.');}],
+  salty:['Too salty',(s,n)=>{s.saltPct=r1(s.saltPct*0.85);s.saltH=Math.max(1,Math.round(s.saltH*0.85*2)/2);n(s.saltM==='brine'?`Brine ${s.saltH} h per kg.`:`Salt ${s.saltPct}%.`);}],
+  unsalty:['Not salty enough',(s,n)=>{s.saltPct=r1(s.saltPct*1.15);s.saltH=Math.round(s.saltH*1.15*2)/2;n(s.saltM==='brine'?`Brine ${s.saltH} h per kg.`:`Salt ${s.saltPct}%.`);}],
+  nobloom:['Weak or patchy bloom',(s,n)=>{addA(s,'geo');s.ageRH=94;n('Add Geotrichum and ripen at 94% humidity, 11–13°C, opening the box once a day for air.');}],
+  mold:['Unwanted mold on the rind',(s,n)=>{if(s.ageRH)s.ageRH=Math.max(75,s.ageRH-3);n(`Humidity down to ${s.ageRH||'–'}%. Wipe with a cloth dampened in brine and improve air flow. If it keeps happening, wax or vacuum-seal.`);}],
+  slow:['Slow or weak set',(s,n)=>{s.imcu=Math.round(s.imcu*1.15);n(`Rennet up to ${s.imcu} IMCU/L. Also check the rennet is fresh, use calcium chloride, and keep the temperature steady.`);}]
+};
+
+/* ---------- lab state ---------- */
+function loadRecipes(){try{return JSON.parse(localStorage.getItem('cheese-recipes-v1')||'[]');}catch(e){return [];}}
+function saveRecipes(a){try{localStorage.setItem('cheese-recipes-v1',JSON.stringify(a));return true;}catch(e){return false;}}
+let L={method:'taste',taste:{moist:1,tang:null,sweet:2,butter:null,earthy:null,pungent:0,sharp:null,salt:null,limit:90,pick:null},like:{base:'gouda',tw:{texture:1,sweet:1},flav:[]},custom:clone(LIB.gouda),customFrom:'gouda',name:'',labMilk:10,editId:null,bookSel:null,iter:[]};
+try{const sv=JSON.parse(localStorage.getItem('cheese-lab-v1')||'null');if(sv){L=Object.assign(L,sv);L.custom=Object.assign(clone(D),L.custom);}}catch(e){}
+function persistLab(){try{localStorage.setItem('cheese-lab-v1',JSON.stringify(L));}catch(e){}}
+
+function registerRecipes(){
+  for(let i=CHEESES.length-1;i>=0;i--)if(CHEESES[i].custom){delete BY[CHEESES[i].id];CHEESES.splice(i,1);}
+  for(const r of loadRecipes()){const v=r.versions[r.versions.length-1];const c=specToCheese(Object.assign(clone(D),v.spec),{id:r.id,name:`${r.name} (v${v.v})`,blurb:r.blurb||'Your recipe from the Recipe lab.'});CHEESES.unshift(c);BY[c.id]=c;}
+}
+
+/* current working recipe for the active method */
+function working(){
+  if(L.method==='taste'){
+    const rank=rankStyles();if(!rank.length)return {empty:'No style can be ready within that time. Allow more time, or choose a fresh cheese.'};
+    const pick=(L.taste.pick&&rank.find(r=>r.id===L.taste.pick))?L.taste.pick:rank[0].id;
+    const t=targetOf(),o=optimize(pick,t,L.taste.limit),r=applyTweaks(o.base,o.tw);fitLimit(r.spec,L.taste.limit);
+    return {spec:r.spec,base:o.base,baseLabel:libName(pick),notes:r.notes,target:t,rank,pick,tw:o.tw,auto:`${libName(pick)}-style, tuned`};
+  }
+  if(L.method==='like'){
+    const base=clone(LIB[L.like.base]),r=applyTweaks(base,L.like.tw,L.like.flav);
+    const NM={texture:['softer','firmer'],tang:['milder','tangier'],sweet:['less sweet','nuttier'],butter:['leaner','richer'],earthy:['cleaner','earthier'],pungent:['gentler','funkier'],blue:[null,'blue'],eyes:[null,'with eyes'],sharp:['mellower','sharper'],salt:['less salty','saltier'],age:['younger','extra aged']};
+    const words=TW.filter(t=>L.like.tw[t.id]).map(t=>{const v=L.like.tw[t.id];return (Math.abs(v)>1?'much ':'')+NM[t.id][v>0?1:0];});
+    return {spec:r.spec,base,baseLabel:libName(L.like.base),notes:r.notes,auto:words.length?`${libName(L.like.base)}, ${words.slice(0,2).join(' & ')}`:`My ${libName(L.like.base)}`};
+  }
+  if(L.method==='custom'){const b=LIB[L.customFrom];return {spec:L.custom,base:b?clone(b):null,baseLabel:b?libName(L.customFrom):null,notes:[],auto:b?`Custom ${libName(L.customFrom)}`:'My custom cheese'};}
+  const rec=loadRecipes().find(r=>r.id===L.bookSel);if(!rec)return {empty:'Pick a recipe from your book, or create one with another method.'};
+  const v=rec.versions[rec.versions.length-1],pv=rec.versions[rec.versions.length-2];
+  return {spec:Object.assign(clone(D),v.spec),base:pv?Object.assign(clone(D),pv.spec):null,baseLabel:pv?`v${pv.v}`:null,notes:(v.notes||[]),auto:rec.name,rec};
+}
+
+/* ---------- rendering ---------- */
+function seg(act,key,val,opts){return `<div class="seg3" role="group">${opts.map(o=>`<button type="button" data-act="${act}" data-key="${key}" data-val="${o[0]}" aria-pressed="${String(o[0])===String(val)}">${esc(o[1])}</button>`).join('')}</div>`;}
+function libOptions(sel,blank){return (blank?`<option value=""${!sel?' selected':''}>Blank sheet</option>`:'')+Object.keys(LIB).map(id=>`<option value="${id}"${id===sel?' selected':''}>${esc(BY[id].name)}</option>`).join('');}
+function renderLab(full){
+  ['taste','like','custom','book'].forEach(m=>{const a=$('#lm-'+m);a.setAttribute('aria-selected',m===L.method);});
+  if(full!==false)renderLabIn();
+  renderLabOut();
+}
+function renderLabIn(){
+  const el=$('#labIn');let h='';
+  if(L.method==='taste'){
+    h=`<div class="card-h"><h2>Describe the cheese you want</h2></div><p class="small muted" style="margin:0">Set only what matters to you. The lab scores every style it knows, picks the closest, then adjusts the make until it lands near your target.</p>
+    <div class="attrs">${ATTR.map(a=>`<div class="attr"><div class="attr-l">${a[1]}</div>${seg('taste',a[0],L.taste[a[0]]==null?'':L.taste[a[0]],[['','Any']].concat(a[4].map((o,i)=>[i,o[0]])))}</div>`).join('')}</div>
+    <label for="lab-limit">Ready within<select id="lab-limit" data-k="limit">${LIMITS.map(l=>`<option value="${l[0]}"${+L.taste.limit===l[0]?' selected':''}>${l[1]}</option>`).join('')}</select></label>
+    <div id="rankBox"></div>`;
+  }
+  if(L.method==='like'){
+    h=`<div class="card-h"><h2>Like a cheese, but…</h2></div>
+    <label for="lab-base">Start from<select id="lab-base" data-k="base">${libOptions(L.like.base)}</select></label>
+    <div class="attrs">${TW.map(t=>{const v=L.like.tw[t.id]||0;const opts=t.minus?[[-2,'−−'],[-1,'−'],[0,'Same'],[1,'+'],[2,'++']]:[[0,'No'],[1,'Yes']];
+      return `<div class="attr"><div class="attr-l">${t.l}<span class="attr-ends">${t.minus?`${esc(t.minus)} ↔ ${esc(t.plus)}`:esc(t.plus)}</span></div>${seg('tw',t.id,v,opts)}</div>`;}).join('')}</div>
+    <div><div class="attr-l" style="margin-bottom:6px">Add flavourings</div><div class="chips">${Object.keys(FLAV).map(f=>`<button type="button" class="chip tog" data-act="flav" data-key="${f}" aria-pressed="${L.like.flav.includes(f)}">${esc(FLAV[f][0])}</button>`).join('')}</div></div>
+    <div class="btns"><button class="btn" type="button" data-act="toCustom">Edit every setting</button><button class="btn" type="button" data-act="resetTw">Reset changes</button></div>`;
+  }
+  if(L.method==='custom'){
+    h=`<div class="card-h"><h2>Fully custom</h2></div>
+    <div class="row2"><label for="lab-from">Start from<select id="lab-from">${libOptions(L.customFrom,true)}</select></label><div style="align-self:end"><button class="btn" type="button" data-act="loadFrom">Load these settings</button></div></div>
+    <p class="hint">Loading replaces your current settings. Temperatures are in ${imp()?'°F':'°C'}.</p>
+    <div id="cform">${customForm(L.custom)}</div>`;
+  }
+  if(L.method==='book'){
+    const recs=loadRecipes();
+    h=`<div class="card-h"><h2>Recipe book</h2><span class="sub">saved in this browser</span></div>`;
+    if(!recs.length)h+='<p class="small muted" style="margin:0">No recipes yet. Build one with Taste first, Like a cheese or Fully custom, then save it.</p>';
+    h+=recs.map(r=>{const v=r.versions[r.versions.length-1];const tr=r.trials||[];const avg=tr.length?(tr.reduce((a,t)=>a+(+t.rating||0),0)/tr.length).toFixed(1):null;
+      return `<button type="button" class="rec${r.id===L.bookSel?' on':''}" data-act="bookSel" data-key="${r.id}"><b>${esc(r.name)}</b><span class="small muted">v${v.v} · ${textureOf(prof(Object.assign(clone(D),v.spec)).moist).toLowerCase()} · ${tr.length} trial${tr.length===1?'':'s'}${avg?` · ★ ${avg}`:''}</span></button>`;}).join('');
+    const rec=recs.find(r=>r.id===L.bookSel);
+    if(rec){
+      const today=toLocalInput(new Date()).slice(0,10);
+      h+=`<div class="sep"></div><h3>${esc(rec.name)}</h3>
+      <div class="tbl-wrap"><table><thead><tr><th>Version</th><th>Saved</th><th>Changes</th><th></th></tr></thead><tbody>${rec.versions.slice().reverse().map(v=>`<tr><td class="num">v${v.v}</td><td class="small">${fDate(new Date(v.date))}</td><td class="small muted">${esc((v.notes||[]).map(n=>n[1]).join(' ').slice(0,160)||'First version')}</td><td><button class="btn" type="button" data-act="editVer" data-key="${v.v}">Edit</button></td></tr>`).join('')}</tbody></table></div>
+      <h3>Log a trial</h3>
+      <div class="row2"><label for="tr-date">Made on<input type="date" id="tr-date" value="${today}"></label><label for="tr-rate">How was it?<select id="tr-rate"><option value="5">★★★★★ Excellent</option><option value="4" selected>★★★★ Good</option><option value="3">★★★ OK</option><option value="2">★★ Poor</option><option value="1">★ Failed</option></select></label></div>
+      <div><div class="attr-l" style="margin-bottom:6px">What was off? (tap all that apply)</div><div class="chips">${Object.keys(ISSUES).map(k=>`<button type="button" class="chip tog" data-act="issue" data-key="${k}" aria-pressed="${L.iter.includes(k)}">${esc(ISSUES[k][0])}</button>`).join('')}</div></div>
+      <label for="tr-notes">Tasting notes<textarea id="tr-notes" class="copybox" style="min-height:70px;font-family:var(--body);font-size:14px" placeholder="Texture, flavour, rind, what you'd change"></textarea></label>
+      <div class="btns"><button class="btn" type="button" data-act="logTrial">Save trial</button><button class="btn primary" type="button" data-act="iterate"${L.iter.length?'':' disabled'}>Make v${rec.versions.length+1} with these fixes</button></div>
+      <div id="fixPrev"></div>
+      ${(rec.trials||[]).length?`<h3>Trials</h3><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Ver.</th><th>Rating</th><th>Notes</th></tr></thead><tbody>${rec.trials.slice().reverse().map(t=>`<tr><td class="small">${fDate(new Date(t.date+'T12:00'))}</td><td class="num">v${t.v}</td><td>${'★'.repeat(+t.rating)}</td><td class="small">${esc([(t.issues||[]).map(i=>ISSUES[i]?ISSUES[i][0]:i).join(', '),t.notes].filter(Boolean).join(' · '))}</td></tr>`).join('')}</tbody></table></div>`:''}
+      <div class="btns"><button class="btn" type="button" data-act="openPlan">Make it in the planner</button><button class="btn danger" type="button" data-act="delRec">${L._delPending===rec.id?'Tap again to delete':'Delete recipe'}</button></div>`;
+    }
+  }
+  el.innerHTML=h;
+  if(L.method==='taste')renderRank();
+  if(L.method==='book')renderFixPrev();
+}
+function renderRank(){
+  const w=working(),box=$('#rankBox');if(!box)return;
+  if(w.empty){box.innerHTML=`<div class="warn">${esc(w.empty)}</div>`;return;}
+  box.innerHTML=`<div class="attr-l" style="margin:4px 0 6px">Closest starting points</div><div class="ranks">${w.rank.slice(0,4).map(r=>`<button type="button" class="rank${r.id===w.pick?' on':''}" data-act="pick" data-key="${r.id}"><span>${esc(BY[r.id].name)}</span><span class="num">${matchPct(r.d)}%</span><i style="width:${matchPct(r.d)}%"></i></button>`).join('')}</div>
+  <p class="hint">Match before adjusting. Tap another to build from it instead.</p>
+  <div class="btns"><button class="btn" type="button" data-act="tasteToLike">Fine-tune these changes</button></div>`;
+}
+const CF=[
+  ['Milk & culture'],
+  ['fat','Milk','sel',FATL],['set','Coagulation','sel',SETL],['cul','Starter culture','sel',CULL],['dose','Culture dose (% of standard)','pct',30,200,5],['aroma','Aroma culture (buttery)','chk'],
+  ['adj','Adjunct cultures','multi',ADJ],
+  ['ripenT','Ripen at','temp'],['ripenMin','Ripen for (min)','num',0,180,5],
+  ['Set & cut'],
+  ['imcu','Rennet (IMCU per litre)','num',2,90,1],['mult','Cut at × flocculation time','num',1.5,7,0.5,'rennet'],['cut','Curd size (cm)','num',0.3,4,0.1,'rennet'],['heal','Heal (min)','num',0,20,1,'rennet'],
+  ['Cook & drain'],
+  ['fore','Stir before cooking (min)','num',0,60,5,'rennet'],['wash','Whey replaced with water (%)','num',0,60,5,'rennet'],['cookT','Cook to','temp',null,null,null,'rennet'],['ramp','Time to reach cook temp (min)','num',5,90,5,'rennet'],['hold','Stir-out at cook temp (min)','num',0,120,5,'rennet'],
+  ['underWhey','Pre-press under the whey','chk',null,null,null,'rennet'],['cheddar','Cheddaring (min, 0 = none)','num',0,150,5,'rennet'],['style','Molding','sel',STYLEL,null,null,'rennet'],
+  ['Press & salt'],
+  ['press','Press','sel',PRESSL,null,null,'press'],['saltM','Salting','sel',SALTL],['saltPct','Salt (% of curd)','num',0.5,4,0.1,'saltPct'],['saltH','Brine time (hours per kg)','num',1,48,0.5,'saltH'],
+  ['Aging'],
+  ['dry','Air-dry before the cave (days)','num',0,7,1],['ageT','Cave temperature','temp'],['ageRH','Cave humidity (%)','num',0,98,1],['days','Age for (days, 0 = fresh)','num',0,900,1],['rind','Rind','sel',RINDL],
+  ['flav','Flavourings','multi',Object.fromEntries(Object.entries(FLAV).map(([k,v])=>[k,[v[0]]]))]
+];
+const cToU=c=>imp()?Math.round(c*9/5+32):c, uToC=u=>imp()?r1((u-32)*5/9):u;
+function cfVisible(f,s){const g=f[6];if(!g)return true;if(g==='rennet')return s.set!=='lactic';if(g==='press')return s.set!=='lactic'&&s.style==='press';if(g==='saltPct')return ['dry','surface','blue'].includes(s.saltM);if(g==='saltH')return s.saltM==='brine';return true;}
+function customForm(s){
+  let h='',open=false;
+  for(const f of CF){
+    if(f.length===1){if(open)h+='</div>';h+=`<div class="cf-sec"><div class="cf-h">${f[0]}</div>`;open=true;continue;}
+    const [k,l,t,o,mx,st]=f,id='cf-'+k,hid=cfVisible(f,s)?'':' hidden';
+    if(t==='sel')h+=`<label for="${id}"${hid}>${l}<select id="${id}" data-k="${k}">${Object.entries(o).map(([v,n])=>`<option value="${v}"${String(s[k])===v?' selected':''}>${esc(n)}</option>`).join('')}</select></label>`;
+    else if(t==='num')h+=`<label for="${id}"${hid}>${l}<input type="number" id="${id}" data-k="${k}" min="${o}" max="${mx}" step="${st}" value="${s[k]}"></label>`;
+    else if(t==='pct')h+=`<label for="${id}"${hid}>${l}<input type="number" id="${id}" data-k="${k}" data-t="pct" min="${o}" max="${mx}" step="${st}" value="${Math.round(s[k]*100)}"></label>`;
+    else if(t==='temp')h+=`<label for="${id}"${hid}>${l} (${imp()?'°F':'°C'})<input type="number" id="${id}" data-k="${k}" data-t="temp" step="0.5" value="${cToU(s[k])}"></label>`;
+    else if(t==='chk')h+=`<label class="chk" for="${id}"${hid}><input type="checkbox" id="${id}" data-k="${k}"${s[k]?' checked':''}> ${l}</label>`;
+    else if(t==='multi')h+=`<div class="cf-multi"><div class="attr-l">${l}</div><div class="chips">${Object.entries(o).map(([v,n])=>`<button type="button" class="chip tog" data-act="cfmulti" data-key="${k}" data-val="${v}" aria-pressed="${s[k].includes(v)}">${esc(n[0].replace(/ \(.*\)/,''))}</button>`).join('')}</div></div>`;
+  }
+  return h+(open?'</div>':'');
+}
+function attrBars(p,pb,t){
+  return `<div class="bars">${ATTR.map(a=>{const k=a[0],v=p[k];
+    return `<div class="barrow"><div class="bl">${a[1]}</div><div class="bt"><span class="end">${a[2]}</span><div class="track"><i class="grid" style="left:50%"></i><i class="fill" style="width:${v*10}%"></i>${pb?`<i class="mk base" style="left:${pb[k]*10}%" title="Starting point"></i>`:''}${t&&t[k]!=null?`<i class="mk tgt" style="left:${t[k]*10}%" title="Your target"></i>`:''}</div><span class="end">${a[3]}</span></div></div>`;}).join('')}</div>
+    <div class="legend small muted"><span><i class="lg fill"></i>This recipe</span>${pb?'<span><i class="lg base"></i>Starting point</span>':''}${t?'<span><i class="lg tgt"></i>Your target</span>':''}</div>`;
+}
+const FIELDS=[
+  ['fat','Milk',v=>FATL[v]],['set','Coagulation',v=>SETL[v]],['cul','Culture',v=>CULL[v]],['dose','Culture dose',v=>Math.round(v*100)+'%'],['aroma','Aroma culture',v=>v?'Yes':'No'],
+  ['adj','Adjuncts',v=>v.length?v.map(a=>ADJ[a][0].replace(/ \(.*\)/,'')).join(', '):'None'],
+  ['ripenT','Ripen at',v=>fT(v)],['ripenMin','Ripen for',v=>v+' min'],['imcu','Rennet',v=>v+' IMCU/L'],['mult','Cut at',v=>v+'× flocculation'],['cut','Curd size',v=>v+' cm'],
+  ['fore','Stir before cook',v=>v+' min'],['wash','Curd washing',v=>v?v+'% of whey':'None'],['cookT','Cook to',v=>fT(v)],['hold','Stir-out',v=>v+' min'],['underWhey','Pre-press under whey',v=>v?'Yes':'No'],['cheddar','Cheddaring',v=>v?v+' min':'None'],
+  ['style','Molding',v=>STYLEL[v]],['press','Press',v=>PRESSL[v]],['saltM','Salting',v=>SALTL[v]],['saltPct','Salt',v=>v+'%'],['saltH','Brine',v=>v+' h/kg'],
+  ['dry','Air-dry',v=>v+' days'],['ageT','Cave',v=>fT(v)],['ageRH','Humidity',v=>v?v+'%':'–'],['days','Aging',v=>v?v+' days':'Fresh'],['rind','Rind',v=>RINDL[v]],['flav','Flavourings',v=>v.length?v.map(f=>FLAV[f][0]).join(', '):'None']
+];
+function relevant(k,s){if(s.set==='lactic'&&['mult','cut','fore','wash','cookT','hold','underWhey','cheddar','press','saltPct','saltH'].includes(k))return false;if(k==='press'&&s.style!=='press')return false;if(k==='saltPct'&&!['dry','surface','blue'].includes(s.saltM))return false;if(k==='saltH'&&s.saltM!=='brine')return false;return true;}
+let LABX=null;
+function preview(spec,name){
+  const c=specToCheese(spec,{id:'_lab',name});BY._lab=c;
+  const saveS=S;S=Object.assign({},S,{cheese:'_lab',sizeMode:'milk',milkHave:L.labMilk,moldCount:1,diam:'',floc:''});
+  let r;try{const x=compute(),tl=timeline(x),e=events(x,tl);r={x,tl,e};}finally{S=saveS;delete BY._lab;}
+  return r;
+}
+function renderLabOut(){
+  const out=$('#labOut'),w=working();
+  if(L.method==='taste')renderRank();
+  if(w.empty){out.innerHTML=`<div class="card"><p class="muted" style="margin:0">${esc(w.empty)}</p></div>`;return;}
+  const s=w.spec,p=prof(s),pb=w.base?prof(w.base):null,name=(L.method==='book'?w.auto:(L.name||w.auto));
+  const pv=preview(s,name);LABX={w,pv,name};
+  const warns=labChecks(s);
+  const changed=w.base?FIELDS.filter(f=>JSON.stringify(w.base[f[0]])!==JSON.stringify(s[f[0]])&&(relevant(f[0],s)||relevant(f[0],w.base))):[];
+  const kindL={pressed:'Pressed & aged',bloomy:'Bloomy rind',blue:'Blue',feta:'Brined',fresh:'Fresh'}[kindOf(s)];
+  let h=`<div class="card rc">
+    <div class="rc-top">${L.method==='book'?`<h2>${esc(name)}</h2>`:`<label for="lab-name" class="grow">Recipe name<input id="lab-name" data-k="name" value="${esc(L.name)}" placeholder="${esc(w.auto)}"></label>`}</div>
+    <div class="chips"><span class="chip strong">${textureOf(p.moist)}</span><span class="chip">${kindL}</span><span class="chip">${s.days?`Ready in ${s.days} days`:'Ready the same or next day'}</span><span class="chip">Yield ≈ ${(pv.x.yPerL*100).toFixed(1)}%</span>${w.baseLabel?`<span class="chip">From ${esc(w.baseLabel)}</span>`:''}</div>
+    <div><h3 style="margin-bottom:8px">Predicted flavour profile</h3>${attrBars(p,pb,w.target)}</div>
+    <p class="hint">An estimate from the make settings, based on how each step affects cheese in general. Your milk, cave and tasting are the real test.</p>
+  </div>`;
+  if(warns.length)h+=`<div class="warns">${warns.map(x=>`<div class="warn">${esc(x)}</div>`).join('')}</div>`;
+  if(w.base&&(changed.length||w.notes.length))h+=`<div class="card"><div class="card-h"><h2>What changes from ${esc(w.baseLabel)}</h2></div>
+    ${changed.length?`<div class="tbl-wrap"><table><thead><tr><th>Setting</th><th>${esc(w.baseLabel)}</th><th>This recipe</th></tr></thead><tbody>${changed.map(f=>`<tr><td>${f[1]}</td><td class="muted">${esc(f[2](w.base[f[0]]))}</td><td><b>${esc(f[2](s[f[0]]))}</b></td></tr>`).join('')}</tbody></table></div>`:''}
+    ${w.notes.length?`<ul class="tips">${w.notes.map(n=>`<li><b>${esc(n[0])}:</b> ${esc(n[1])}</li>`).join('')}</ul>`:''}</div>`;
+  h+=`<div class="card"><div class="card-h"><h2>Full settings</h2></div><div class="tbl-wrap"><table class="settings"><tbody>${FIELDS.filter(f=>relevant(f[0],s)).map(f=>`<tr${changed.includes(f)?' class="chg"':''}><td>${f[1]}</td><td>${esc(f[2](s[f[0]]))}</td></tr>`).join('')}</tbody></table></div></div>`;
+  // method preview
+  const x=pv.x,tl=pv.tl;let tm=0;
+  h+=`<div class="card"><div class="card-h"><h2>Method</h2><label for="lab-milk" class="inline">Test batch (L)<input type="number" id="lab-milk" data-k="labMilk" min="2" step="1" value="${L.labMilk}"></label></div>
+    <p class="small" style="margin:0">${fLBoth(x.milkL)} milk → about <b>${fKg(x.totalKg)}</b>. Hands-on ${fDur(tl.hands)}. Times count from the start.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Ingredient</th><th>Amount</th></tr></thead><tbody>${x.ing.map(r=>`<tr><td>${esc(r[0])}</td><td class="amt">${esc(r[1])}</td></tr>`).join('')}</tbody></table></div>
+    <ol class="tl">${tl.rows.map(r=>{const at=Math.round((r.at-tl.start)/60000),hh=Math.floor(at/60),mm=String(at%60).padStart(2,'0');return `<li><div class="clock">${hh}:${mm}</div><div><div class="head"><h3>${esc(r.title)}</h3>${r.temp!=null?`<span class="temp" style="background:${tempColor(r.temp)}">${fT(r.temp)}</span>`:''}<span class="dur">${fDur(r.dur)}</span></div><p class="body">${r.body}</p></div></li>`;}).join('')}</ol>
+    <h3>After the make</h3><ul class="tips">${pv.e.ev.filter(e=>e.kind!=='make').map(e=>`<li><b>Day ${e.day}${e.count>1?`–${e.day+e.every*(e.count-1)}`:''}:</b> ${esc(e.title)}${e.count>1?` (${e.every===1?'daily':'every '+e.every+' days'})`:''}</li>`).join('')}</ul>
+  </div>`;
+  h+=`<div class="card"><div class="btns">${L.method==='book'?'':`<button class="btn primary" type="button" data-act="save">${L.editId&&loadRecipes().some(r=>r.id===L.editId)?'Save as new version':'Save to recipe book'}</button>`}<button class="btn" type="button" data-act="saveOpen">${L.method==='book'?'Make it in the planner':'Save & make it in the planner'}</button><button class="btn" type="button" data-act="copyRec">Copy recipe</button></div>
+    ${L.editId&&L.method!=='book'?`<p class="hint">Editing “${esc((loadRecipes().find(r=>r.id===L.editId)||{}).name||'')}”. Saving adds a new version. <button class="linkbtn" type="button" data-act="newRec">Save as a separate recipe instead</button></p>`:''}</div>`;
+  out.innerHTML=h;
+}
+function renderFixPrev(){
+  const box=$('#fixPrev');if(!box)return;const rec=loadRecipes().find(r=>r.id===L.bookSel);
+  if(!rec||!L.iter.length){box.innerHTML='';return;}
+  const s=Object.assign(clone(D),rec.versions[rec.versions.length-1].spec),notes=[];
+  L.iter.forEach(k=>ISSUES[k][1](s,m=>notes.push([ISSUES[k][0],m])));
+  box.innerHTML=`<div class="info"><b>Suggested changes for v${rec.versions.length+1}</b><ul class="tips" style="margin-top:4px">${notes.map(n=>`<li><b>${esc(n[0])}:</b> ${esc(n[1])}</li>`).join('')}</ul></div>`;
+}
+
+/* ---------- actions ---------- */
+function saveCurrent(asNew){
+  const w=working();if(w.empty)return null;const recs=loadRecipes();
+  const name=(L.name||w.auto).trim().slice(0,60)||'My cheese';
+  let rec=(!asNew&&L.editId)?recs.find(r=>r.id===L.editId):null;
+  if(rec){rec.versions.push({v:rec.versions.length+1,date:new Date().toISOString(),spec:clone(w.spec),notes:w.notes});if(L.name)rec.name=name;}
+  else{rec={id:'u'+Date.now().toString(36),name,blurb:w.baseLabel?`Developed from ${w.baseLabel} in the Recipe lab.`:'Built from scratch in the Recipe lab.',versions:[{v:1,date:new Date().toISOString(),spec:clone(w.spec),notes:w.notes}],trials:[]};recs.push(rec);}
+  if(!saveRecipes(recs)){toast('This browser blocked saving. Use Copy recipe instead.');return null;}
+  L.editId=rec.id;L.bookSel=rec.id;persistLab();registerRecipes();buildSelect();toast(`Saved ${rec.name} v${rec.versions.length}`);return rec;
+}
+function openInPlanner(id){
+  registerRecipes();buildSelect();const c=BY[id];if(!c)return;S.cheese=id;S.floc='';
+  if(c.kind==='fresh'&&!c.molded)S.sizeMode='milk';
+  syncInputs();persist();render();location.hash='make';
+}
+function recipeText(){
+  const {w,pv,name}=LABX,s=w.spec,p=prof(s),o=[name.toUpperCase(),w.baseLabel?`Developed from ${w.baseLabel}`:'Custom recipe',`${textureOf(p.moist)} · ${s.days?s.days+' days':'fresh'}`,''];
+  o.push('PROFILE (0–10)');ATTR.forEach(a=>o.push(`${a[1]}: ${p[a[0]].toFixed(1)}`));o.push('');
+  o.push('SETTINGS');FIELDS.filter(f=>relevant(f[0],s)).forEach(f=>o.push(`${f[1]}: ${f[2](s[f[0]])}`));
+  if(w.notes.length){o.push('','WHY');w.notes.forEach(n=>o.push(`- ${n[0]}: ${n[1]}`));}
+  o.push('',`METHOD (${fLBoth(pv.x.milkL)} milk)`);pv.x.ing.forEach(r=>o.push(`- ${r[0]}: ${r[1]}`));
+  pv.tl.rows.forEach(r=>{const at=Math.round((r.at-pv.tl.start)/60000);o.push(`${Math.floor(at/60)}:${String(at%60).padStart(2,'0')}  ${r.title}${r.temp!=null?' ['+fT(r.temp)+']':''}: ${strip(r.body)}`);});
+  o.push('','AFTER THE MAKE');pv.e.ev.filter(e=>e.kind!=='make').forEach(e=>o.push(`Day ${e.day}: ${e.title}. ${strip(e.detail)}`));
+  return o.join('\n');
+}
+function labClick(e){
+  const b=e.target.closest('[data-act]');if(!b)return;const act=b.dataset.act,key=b.dataset.key,val=b.dataset.val;
+  if(act==='taste'){L.taste[key]=val===''?null:+val;L.taste.pick=null;persistLab();renderLabIn();renderLabOut();return;}
+  if(act==='pick'){L.taste.pick=key;persistLab();renderLabOut();return;}
+  if(act==='tasteToLike'){const w=working();if(w.empty)return;L.like.base=w.pick;L.like.tw=Object.assign({},w.tw);L.like.flav=[];L.name='';location.hash='lab-like';return;}
+  if(act==='tw'){L.like.tw[key]=+val;persistLab();renderLabIn();renderLabOut();return;}
+  if(act==='flav'){const f=L.like.flav;L.like.flav=f.includes(key)?f.filter(x=>x!==key):f.concat(key);persistLab();renderLabIn();renderLabOut();return;}
+  if(act==='resetTw'){L.like.tw={};L.like.flav=[];persistLab();renderLabIn();renderLabOut();return;}
+  if(act==='toCustom'){const w=working();L.custom=clone(w.spec);L.customFrom=L.method==='like'?L.like.base:L.customFrom;location.hash='lab-custom';return;}
+  if(act==='loadFrom'){const id=$('#lab-from').value;L.customFrom=id;L.custom=clone(LIB[id]||D);persistLab();renderLabIn();renderLabOut();toast('Settings loaded');return;}
+  if(act==='cfmulti'){const a=L.custom[key];L.custom[key]=a.includes(val)?a.filter(x=>x!==val):a.concat(val);b.setAttribute('aria-pressed',L.custom[key].includes(val));persistLab();renderLabOut();return;}
+  if(act==='save'){saveCurrent(false);renderLabOut();return;}
+  if(act==='newRec'){L.editId=null;saveCurrent(true);renderLabOut();return;}
+  if(act==='saveOpen'){let id=L.method==='book'?L.bookSel:null;if(!id){const r=saveCurrent(false);if(!r)return;id=r.id;}openInPlanner(id);return;}
+  if(act==='copyRec'){copy(recipeText(),'Recipe copied');return;}
+  if(act==='bookSel'){L.bookSel=key;L.iter=[];L._delPending=null;persistLab();renderLab();return;}
+  if(act==='issue'){L.iter=L.iter.includes(key)?L.iter.filter(x=>x!==key):L.iter.concat(key);persistLab();renderLabIn();return;}
+  if(act==='editVer'){const rec=loadRecipes().find(r=>r.id===L.bookSel);const v=rec.versions.find(x=>x.v===+key);L.custom=Object.assign(clone(D),v.spec);L.customFrom='';L.editId=rec.id;L.name=rec.name;location.hash='lab-custom';return;}
+  if(act==='logTrial'||act==='iterate'){
+    const recs=loadRecipes(),rec=recs.find(r=>r.id===L.bookSel);if(!rec)return;
+    const tr={date:$('#tr-date').value||toLocalInput(new Date()).slice(0,10),v:rec.versions.length,rating:$('#tr-rate').value,issues:L.iter.slice(),notes:$('#tr-notes').value.trim()};
+    rec.trials=(rec.trials||[]).concat(tr);
+    if(act==='iterate'){const s=Object.assign(clone(D),rec.versions[rec.versions.length-1].spec),notes=[];L.iter.forEach(k=>ISSUES[k][1](s,m=>notes.push([ISSUES[k][0],m])));rec.versions.push({v:rec.versions.length+1,date:new Date().toISOString(),spec:s,notes});}
+    saveRecipes(recs);L.iter=[];persistLab();registerRecipes();buildSelect();renderLab();toast(act==='iterate'?`v${rec.versions.length} saved with fixes`:'Trial saved');return;}
+  if(act==='openPlan'){openInPlanner(L.bookSel);return;}
+  if(act==='delRec'){if(L._delPending===L.bookSel){const recs=loadRecipes().filter(r=>r.id!==L.bookSel);saveRecipes(recs);if(L.editId===L.bookSel)L.editId=null;L.bookSel=null;L._delPending=null;registerRecipes();buildSelect();toast('Recipe deleted');}else L._delPending=L.bookSel;persistLab();renderLab();return;}
+}
+function labInput(e){
+  const el=e.target,k=el.dataset.k;if(!k)return;
+  if(k==='name'){L.name=el.value;persistLab();return;}
+  if(k==='labMilk'){L.labMilk=Math.max(1,+el.value||10);persistLab();renderLabOut();return;}
+  if(k==='limit'){L.taste.limit=+el.value;L.taste.pick=null;persistLab();renderLabOut();return;}
+  if(k==='base'){L.like.base=el.value;L.name='';persistLab();renderLabOut();return;}
+  if(L.method==='custom'){
+    let v;if(el.type==='checkbox')v=el.checked;else if(el.tagName==='SELECT')v=el.value;else{const n=parseFloat(el.value);if(isNaN(n))return;v=el.dataset.t==='pct'?n/100:el.dataset.t==='temp'?uToC(n):n;}
+    L.custom[k]=v;
+    if(k==='set'&&v==='lactic'){Object.assign(L.custom,{style:'hang',rind:'fresh',saltM:'chevre',ripenT:22,imcu:5,days:0,dose:0.65});}
+    if(k==='rind'){const r=v;if(r==='bloomy'){addA(L.custom,'candidum');L.custom.style='ladle';L.custom.saltM='surface';}if(r==='blue')addA(L.custom,'roqueforti');if(r==='smear')addA(L.custom,'linens');}
+    persistLab();
+    if(el.tagName==='SELECT'||el.type==='checkbox'){const keep=el.id;$('#cform').innerHTML=customForm(L.custom);const n=document.getElementById(keep);if(n)n.focus();}
+    renderLabOut();
+  }
+}
+$('#lab').addEventListener('click',labClick);
+$('#lab').addEventListener('input',e=>{if(e.target.tagName!=='SELECT'&&e.target.type!=='checkbox')labInput(e);});
+$('#lab').addEventListener('change',e=>{if(e.target.tagName==='SELECT'||e.target.type==='checkbox')labInput(e);});
+registerRecipes();
+init();
+$('#u-metric').addEventListener('click',()=>{if(!$('#lab').hidden)renderLab();});
+$('#u-imp').addEventListener('click',()=>{if(!$('#lab').hidden)renderLab();});
+</script>
+
+</body>
+</html>
